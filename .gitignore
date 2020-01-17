@@ -14,3 +14,7 @@ server.pid
 *.eml
 /dist/
 .cache
+**/.settings
+joblog.log
+**/target
+analytics-api/logs

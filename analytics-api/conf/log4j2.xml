@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" packages="">
+	<Properties>
+		<Property name="baseDir">logs</Property>
+		<!-- <Property name="baseDir">/mount/data/analytics/logs</Property> --><!-- Production Config -->
+	</Properties>
+	<Appenders>
+		<Console name="Console" target="SYSTEM_OUT">
+			<PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n" />
+		</Console>
+		<RollingFile name="RollingFileAppender" fileName="${baseDir}/joblog.log" filePattern="${baseDir}/joblog-%d{MM-dd-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>%m%n</Pattern>
+			</PatternLayout>
+			<Policies>
+				<TimeBasedTriggeringPolicy />
+			</Policies>
+			<DefaultRolloverStrategy>
+                <Delete basePath="${baseDir}/" maxDepth="1" testMode="false">
+                    <IfFileName glob="joblog-*.log" />
+                    <IfLastModified age="7d" />
+                </Delete>
+            </DefaultRolloverStrategy>
+		</RollingFile>
+		<RollingFile name="Device-Log-RollingFileAppender" fileName="${baseDir}/device-profile.log" filePattern="${baseDir}/device-profile-%d{MM-dd-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>%m%n</Pattern>
+			</PatternLayout>
+			<Policies>
+				<TimeBasedTriggeringPolicy />
+			</Policies>
+			<DefaultRolloverStrategy>
+				<Delete basePath="${baseDir}/" maxDepth="1" testMode="false">
+					<IfFileName glob="device-profile-*.log" />
+					<IfLastModified age="7d" />
+				</Delete>
+			</DefaultRolloverStrategy>
+		</RollingFile>
+		<RollingFile name="Metrics-RollingFileAppender" fileName="${baseDir}/api-metrics.log" filePattern="${baseDir}/api-metrics-%d{MM-dd-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>%m%n</Pattern>
+			</PatternLayout>
+			<Policies>
+				<TimeBasedTriggeringPolicy />
+			</Policies>
+			<DefaultRolloverStrategy>
+				<Delete basePath="${baseDir}/" maxDepth="1" testMode="false">
+					<IfFileName glob="api-metrics-*.log" />
+					<IfLastModified age="7d" />
+				</Delete>
+			</DefaultRolloverStrategy>
+		</RollingFile>
+		<RollingFile name="Crash-Log-RollingFileAppender" fileName="${baseDir}/crash-logs.log" filePattern="${baseDir}/crash-logs-%d{MM-dd-yyyy}-%i.log">
+			<PatternLayout>
+				<Pattern>%m%n</Pattern>
+			</PatternLayout>
+			<Policies>
+				<TimeBasedTriggeringPolicy />
+			</Policies>
+			<DefaultRolloverStrategy>
+				<Delete basePath="${baseDir}/" maxDepth="1" testMode="false">
+					<IfFileName glob="crash-logs-*.log" />
+					<IfLastModified age="7d" />
+				</Delete>
+			</DefaultRolloverStrategy>
+		</RollingFile>
+		<Async name="Async">
+			<AppenderRef ref="RollingFileAppender" />
+		</Async>
+	</Appenders>
+	<Loggers>
+		<Logger name="org.ekstep.analytics.api" level="info" additivity="false">
+			<AppenderRef ref="Async"/>
+		</Logger>
+		<Logger name="metrics-logger" level="info" additivity="false">
+			<AppenderRef ref="Metrics-RollingFileAppender"/>
+		</Logger>
+		<Logger name="crash-logger" level="info" additivity="false">
+			<AppenderRef ref="Crash-Log-RollingFileAppender"/>
+		</Logger>
+		<Logger name="device-logger" level="info" additivity="false">
+			<AppenderRef ref="Device-Log-RollingFileAppender"/>
+		</Logger>
+		<Root level="error">
+			<AppenderRef ref="Console" />
+		</Root>
+	</Loggers>
+</Configuration>

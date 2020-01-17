@@ -1,0 +1,34 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# General APIs
+GET  /health controllers.Application.checkAPIhealth
+
+# Druid health check API
+GET /metrics/druid controllers.Application.getDruidHealthStatus
+
+# Device Register API
+
+# Device Profile API
+GET /v1/device/profile/:deviceId controllers.DeviceController.getDeviceProfile(deviceId: String)
+
+POST /v1/device/register/:deviceId controllers.DeviceController.registerDevice(deviceId: String)
+GET /v1/device/profile/:deviceId controllers.DeviceController.getDeviceProfile(deviceId: String)
+
+
+#client error API
+POST /data/v1/client/logs controllers.Application.logClientErrors
+
+#Experiemnt API
+
+POST /experiment/create controllers.ExperimentController.createExperiment
+GET /experiment/get/:experimentId controllers.ExperimentController.getExperiment(experimentId:String)
+
+# Data Exhaust
+POST /dataset/request/submit controllers.JobController.dataRequest
+GET /dataset/request/read/:clientKey/:requestId controllers.JobController.getJob(clientKey: String, requestId: String)
+GET /dataset/request/list/:clientKey controllers.JobController.getJobList(clientKey: String)
+
+GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
+GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: String)

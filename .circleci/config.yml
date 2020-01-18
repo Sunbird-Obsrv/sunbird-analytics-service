@@ -4,28 +4,21 @@ jobs:
     machine: true
     steps:
     - checkout
+    - run: git clone https://github.com/project-sunbird/sunbird-analytics-core
     - restore_cache:
         keys: 
           - dp-dependency-cache-{{ checksum "pom.xml" }}
-          - dp-core-libraries
-    - run: mvn install:install-file -Dfile=analytics-core/target/analytics-core-2.0.jar -DgroupId=org.sunbird -DartifactId=analytics-core -Dversion=2.0 -Dpackaging=jar
-    - run: mvn install:install-file -Dfile=analytics-core/target/analytics-job-driver-2.0.jar -DgroupId=org.sunbird -DartifactId=analytics-job-driver -Dversion=2.0 -Dpackaging=jar
+    - run: cd sunbird-analytics-core/analytics-core && mvn install -DskipTests
     - run:
         name: lpa-api-build
-        command: mvn clean install -DskipTests && mvn scoverage:report
-    - run: mvn play2:dist -pl analytics-api
+        command: mvn clean scoverage:report
     - save_cache:
         key: dp-dependency-cache-{{ checksum "pom.xml" }}
         paths: ~/.m2
-    - run: mkdir temp && cp analytics-api/target/analytics-api-2.0-dist.zip temp/
-    - store_artifacts:
-        path: temp
-        destination: temp/
-
-    - run:
-        name: sonar
-        command: |
-          mvn -X sonar:sonar -Dsonar.projectKey=project-sunbird_sunbird-analytics-service -Dsonar.organization=project-sunbird -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
+#    - run:
+#        name: sonar
+#        command: |
+#          mvn -X sonar:sonar -Dsonar.projectKey=project-sunbird_sunbird-analytics-service -Dsonar.organization=project-sunbird -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
 
 workflows:
   version: 2.1

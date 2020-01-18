@@ -8,7 +8,7 @@ jobs:
     - restore_cache:
         keys: 
           - dp-dependency-cache-{{ checksum "pom.xml" }}
-    - run: cd sunbird-analytics-core/analytics-core && mvn install -DskipTests
+    - run: cd sunbird-analytics-core && mvn install -DskipTests
     - run:
         name: lpa-api-build
         command: mvn clean scoverage:report

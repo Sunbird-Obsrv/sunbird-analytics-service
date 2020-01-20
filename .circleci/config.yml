@@ -4,17 +4,22 @@ jobs:
     machine: true
     steps:
     - checkout
+  
     - run: git clone https://github.com/project-sunbird/sunbird-analytics-core -b $CIRCLE_BRANCH
     - restore_cache:
         keys: 
           - dp-dependency-cache-{{ checksum "pom.xml" }}
+          
     - run: cd sunbird-analytics-core && mvn install -DskipTests
+    
     - run:
         name: lpa-api-build
         command: mvn clean scoverage:report
+    
     - save_cache:
         key: dp-dependency-cache-{{ checksum "pom.xml" }}
         paths: ~/.m2
+    
     - run:
         name: sonar
         command: |

@@ -5,7 +5,18 @@ jobs:
     steps:
     - checkout
   
-    - run: git clone https://github.com/project-sunbird/sunbird-analytics-core -b $CIRCLE_BRANCH
+    - run:
+        name: clone analytics core
+        command: |
+          if [ -z $CIRCLE_PR_NUMBER ]; then
+          target_branch=$CIRCLE_BRANCH
+          git clone https://github.com/project-sunbird/sunbird-analytics-core.git -b $target_branch
+          else
+          prdata=$(curl -X GET -u $GITHUB_USER_TOKEN:x-oauth-basic https://api.github.com/repos/project-sunbird/sunbird-analytics-service/pulls/$CIRCLE_PR_NUMBER)
+          target_branch=$(echo "${prdata}" | jq -r '.base.ref')
+          git clone https://github.com/project-sunbird/sunbird-analytics-core.git -b $target_branch
+          fi
+
     - restore_cache:
         keys: 
           - dp-dependency-cache-{{ checksum "pom.xml" }}
@@ -24,7 +35,7 @@ jobs:
         name: sonar
         command: |
           mvn -X sonar:sonar -Dsonar.projectKey=project-sunbird_sunbird-analytics-service -Dsonar.organization=project-sunbird -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
-
+##test
 workflows:
   version: 2.1
   workflow:

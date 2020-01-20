@@ -4,7 +4,7 @@ jobs:
     machine: true
     steps:
     - checkout
-    - run: git clone https://github.com/project-sunbird/sunbird-analytics-core
+    - run: git clone https://github.com/project-sunbird/sunbird-analytics-core -b $CIRCLE_BRANCH
     - restore_cache:
         keys: 
           - dp-dependency-cache-{{ checksum "pom.xml" }}

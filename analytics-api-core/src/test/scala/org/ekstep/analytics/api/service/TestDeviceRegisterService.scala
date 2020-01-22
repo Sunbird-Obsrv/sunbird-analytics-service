@@ -32,7 +32,7 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
   val metricsActorProbe = TestProbe()
 
   when(configMock.getInt("redis.deviceIndex")).thenReturn(redisIndex)
-  when(configMock.getInt("redis.port")).thenReturn(6380)
+  when(configMock.getInt("redis.port")).thenReturn(6379)
   when(configMock.getString("postgres.table.geo_location_city.name")).thenReturn("geo_location_city")
   when(configMock.getString("postgres.table.geo_location_city_ipv4.name")).thenReturn("geo_location_city_ipv4")
   when(configMock.getBoolean("device.api.enable.debug.log")).thenReturn(true)
@@ -74,7 +74,7 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
 
   override def beforeAll() {
     super.beforeAll()
-    redisServer = new RedisServer(6380);
+    redisServer = new RedisServer(6379);
     redisServer.start();
   }
   

@@ -29,7 +29,7 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   val saveMetricsActor = TestActorRef(new SaveMetricsActor)
   val metricsActorProbe = TestProbe()
   when(configMock.getInt("redis.deviceIndex")).thenReturn(2)
-  when(configMock.getInt("redis.port")).thenReturn(6380)
+  when(configMock.getInt("redis.port")).thenReturn(6379)
   when(configMock.getString("postgres.table.geo_location_city.name")).thenReturn("geo_location_city")
   when(configMock.getString("postgres.table.geo_location_city_ipv4.name")).thenReturn("geo_location_city_ipv4")
   when(configMock.getBoolean("device.api.enable.debug.log")).thenReturn(true)
@@ -43,7 +43,7 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
 
   override def beforeAll() {
     super.beforeAll()
-    redisServer = new RedisServer(6380);
+    redisServer = new RedisServer(6379);
     redisServer.start();
     val jedis = redisUtil.getConnection(redisIndex);
     jedis.hmset("device-001", Map("user_declared_state" -> "Karnataka", "user_declared_district" -> "Tumkur").asJava);

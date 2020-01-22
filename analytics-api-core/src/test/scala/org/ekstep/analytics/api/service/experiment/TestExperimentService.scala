@@ -37,7 +37,7 @@ class TestExperimentService extends BaseSpec {
 
     val userId = "user1"
     val deviceId = "device1"
-    val url = "http://diksha.gov.in/home"
+    val url = "http://sunbird.org/home"
     val experimentData: ExperimentData = JSONUtils.deserialize[ExperimentData](Constants.EXPERIMENT_DATA)
     val fields = experimentService.getFieldsMap(Some(deviceId), Some(userId), Some(url), None)
     val key = experimentService.keyGen(Some(deviceId), Some(userId), Some(url), None)

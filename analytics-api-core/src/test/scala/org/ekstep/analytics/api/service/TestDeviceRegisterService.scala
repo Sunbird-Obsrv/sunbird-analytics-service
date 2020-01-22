@@ -10,32 +10,40 @@ import org.mockito.Mockito._
 import redis.clients.jedis.Jedis
 
 import scala.concurrent.ExecutionContext
+import redis.embedded.RedisServer
+import scala.collection.JavaConverters._
+import de.sciss.fingertree.RangedSeq
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatestplus.mockito.MockitoSugar
+import com.typesafe.config.ConfigFactory
 
-class TestDeviceRegisterService extends BaseSpec {
+class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
 
+  implicit val config = ConfigFactory.load()
   val deviceRegisterServiceMock: DeviceRegisterService = mock[DeviceRegisterService]
   private implicit val system: ActorSystem = ActorSystem("device-register-test-actor-system", config)
   private val configMock = mock[Config]
   private val jedisMock = mock[Jedis]
-  private val redisUtilMock = mock[RedisUtil]
+  private val redisUtil = new RedisUtil();
   private val postgresDBMock = mock[PostgresDBUtil]
-  private val H2DBMock = mock[H2DBUtil]
   implicit val executor: ExecutionContext = scala.concurrent.ExecutionContext.global
-  val redisIndex: Int = config.getInt("redis.deviceIndex")
+  val redisIndex: Int = 2
   val saveMetricsActor = TestActorRef(new SaveMetricsActor)
   val metricsActorProbe = TestProbe()
 
   when(configMock.getInt("redis.deviceIndex")).thenReturn(redisIndex)
+  when(configMock.getInt("redis.port")).thenReturn(6380)
   when(configMock.getString("postgres.table.geo_location_city.name")).thenReturn("geo_location_city")
   when(configMock.getString("postgres.table.geo_location_city_ipv4.name")).thenReturn("geo_location_city_ipv4")
   when(configMock.getBoolean("device.api.enable.debug.log")).thenReturn(true)
-  private val deviceRegisterService = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtilMock, postgresDBMock, H2DBMock)).underlyingActor
-  private val deviceRegisterActorRef = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtilMock, postgresDBMock, H2DBMock) {
+  private val deviceRegisterService = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtil, postgresDBMock)).underlyingActor
+  private val deviceRegisterActorRef = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtil, postgresDBMock) {
     override val metricsActor: ActorRef = metricsActorProbe.ref
   })
 
   private val geoLocationCityIpv4TableName = config.getString("postgres.table.geo_location_city_ipv4.name")
   private val geoLocationCityTableName = config.getString("postgres.table.geo_location_city.name")
+  private var redisServer:RedisServer = _;
 
   val request: String =
     s"""
@@ -66,7 +74,13 @@ class TestDeviceRegisterService extends BaseSpec {
 
   override def beforeAll() {
     super.beforeAll()
-    when(redisUtilMock.getConnection(redisIndex)).thenReturn(jedisMock)
+    redisServer = new RedisServer(6380);
+    redisServer.start();
+  }
+  
+  override def afterAll() {
+    super.afterAll()
+    redisServer.stop();
   }
 
   val uaspec = s"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36"
@@ -74,10 +88,10 @@ class TestDeviceRegisterService extends BaseSpec {
 
   "Device register request " should "generate data for logging device register request" in {
 
-    val deviceLocation = DeviceLocation("Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE")
+    val deviceLocation = DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE")
     val deviceId = "test-device-1"
     val deviceSpec = JSONUtils.deserialize[Map[String, AnyRef]]("{\"cpu\":\"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)\",\"make\":\"Micromax Micromax A065\",\"os\":\"Android 4.4.2\"}")
-    val producerId = Some("prod.diksha.app")
+    val producerId = Some("sunbird.app")
     val fcmToken = Some("test-token")
 
     when(configMock.getInt("metrics.time.interval.min")).thenReturn(300)
@@ -100,7 +114,7 @@ class TestDeviceRegisterService extends BaseSpec {
 
   "Optional fields in request" should " be skipped from the log" in {
 
-    val deviceLocation = DeviceLocation("Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE")
+    val deviceLocation = DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE")
     val deviceId = "test-device-1"
     val deviceSpec = JSONUtils.deserialize[Map[String, AnyRef]]("{\"cpu\":\"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)\",\"make\":\"Micromax Micromax A065\",\"os\":\"Android 4.4.2\"}")
 
@@ -119,7 +133,7 @@ class TestDeviceRegisterService extends BaseSpec {
 
   "Resolve location" should "return location details given an IP address" in {
     when(deviceRegisterServiceMock.resolveLocation(ipAddress = "106.51.74.185"))
-      .thenReturn(DeviceLocation("Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE"))
+      .thenReturn(DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "KARNATAKA", "29", "BANGALORE"))
     val deviceLocation = deviceRegisterServiceMock.resolveLocation("106.51.74.185")
     deviceLocation.countryCode should be("IN")
     deviceLocation.countryName should be("India")
@@ -152,36 +166,29 @@ class TestDeviceRegisterService extends BaseSpec {
   }
 
   "register device message" should "resolve location write to logger" in {
+    
     val deviceSpec = "{\"cpu\":\"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)\",\"make\":\"Micromax Micromax A065\",\"os\":\"Android 4.4.2\"}"
     val uaspec = s"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36"
 
-    val query =
-      s"""
-         |SELECT
-         |  glc.continent_name,
-         |  glc.country_iso_code country_code,
-         |  glc.country_name,
-         |  glc.subdivision_1_iso_code state_code,
-         |  glc.subdivision_1_name state,
-         |  glc.subdivision_2_name sub_div_2,
-         |  glc.city_name city,
-         |  glc.subdivision_1_custom_name state_custom,
-         |  glc.subdivision_1_custom_code state_code_custom,
-         |  glc.subdivision_2_custom_name district_custom
-         |FROM $geoLocationCityIpv4TableName gip,
-         |  $geoLocationCityTableName glc
-         |WHERE glc.country_iso_code = 'IN'
-         |  AND gip.geoname_id = glc.geoname_id
-         |  AND gip.network_start_integer <= 1935923652
-         |  AND gip.network_last_integer >= 1935923652
-               """.stripMargin
-
-    when(postgresDBMock.readLocation(query)).thenReturn(List(DeviceLocation(continentName = "Asia", countryCode = "IN", countryName = "India", stateCode = "KA",
-      state = "TamilNadu", subDivsion2 = null, city = "chennai",
-      stateCustom = "chennai", stateCodeCustom = "29", districtCustom = null)))
-
-    deviceRegisterActorRef.tell(RegisterDevice(did = "device-001", headerIP = "115.99.217.196", ip_addr = Option("115.99.217.196"), fcmToken = Option("some-token"), producer = Option("prod.diksha.app"), dspec = Option(deviceSpec), uaspec = Option(uaspec), first_access = Option(123456789), user_declared_state = Option("TamilNadu"), user_declared_district = Option("chennai")), ActorRef.noSender)
-    verify(postgresDBMock, times(1)).readLocation(query)
+    IPLocationCache.setGeoLocMap(Map(1277333 -> DeviceLocation(1277333, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "Karnataka", "29", "Bangalore")))
+    IPLocationCache.setRangeTree(RangedSeq((1935923650l, 1935923660l) -> 1277333)(_._1, Ordering.Long))
+    deviceRegisterActorRef.tell(RegisterDevice(did = "device-001", headerIP = "115.99.217.196", ip_addr = Option("115.99.217.196"), fcmToken = Option("some-token"), producer = Option("sunbird.app"), dspec = Option(deviceSpec), uaspec = Option(uaspec), first_access = Option(123456789), user_declared_state = Option("TamilNadu"), user_declared_district = Option("chennai")), ActorRef.noSender)
+    
+    val jedis = redisUtil.getConnection(redisIndex);
+    val result = jedis.hgetAll("device-001").asScala;
+    
+    result.get("continent_name").get should be ("Asia");
+    result.get("country_code").get should be ("IN");
+    result.get("user_declared_district").get should be ("chennai");
+    result.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+    result.get("city").get should be ("Bangalore");
+    result.get("district_custom").get should be ("Bangalore");
+    result.get("fcm_token").get should be ("some-token");
+    result.get("producer").get should be ("sunbird.app");
+    result.get("user_declared_state").get should be ("TamilNadu");
+    result.get("devicespec").get should be ("""{"cpu":"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)","make":"Micromax Micromax A065","os":"Android 4.4.2"}""");
+    result.get("state_custom").get should be ("Karnataka");
+    result.get("geoname_id").get should be ("1277333");
 
     metricsActorProbe.expectMsg(IncrementApiCalls)
     metricsActorProbe.expectMsg(IncrementLocationDbHitCount)
@@ -207,34 +214,23 @@ class TestDeviceRegisterService extends BaseSpec {
     val deviceSpec = "{\"cpu\":\"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)\",\"make\":\"Micromax Micromax A065\",\"os\":\"Android 4.4.2\"}"
     val uaspec = s"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36"
 
-    val query =
-      s"""
-         |SELECT
-         |  glc.continent_name,
-         |  glc.country_iso_code country_code,
-         |  glc.country_name,
-         |  glc.subdivision_1_iso_code state_code,
-         |  glc.subdivision_1_name state,
-         |  glc.subdivision_2_name sub_div_2,
-         |  glc.city_name city,
-         |  glc.subdivision_1_custom_name state_custom,
-         |  glc.subdivision_1_custom_code state_code_custom,
-         |  glc.subdivision_2_custom_name district_custom
-         |FROM $geoLocationCityIpv4TableName gip,
-         |  $geoLocationCityTableName glc
-         |WHERE glc.country_iso_code = 'IN'
-         |  AND gip.geoname_id = glc.geoname_id
-         |  AND gip.network_start_integer <= 1935923652
-         |  AND gip.network_last_integer >= 1935923652
-               """.stripMargin
-
-    when(postgresDBMock.readLocation(query)).thenReturn(List(
-      DeviceLocation(continentName = "Asia", countryCode = "IN", countryName = "India", stateCode = "KA",
-        state = null, subDivsion2 = null, city = null,
-        stateCustom = "", stateCodeCustom = "29", districtCustom = null))
-    )
-
-    deviceRegisterActorRef.tell(RegisterDevice(did = "device-001", headerIP = "115.99.217.196", ip_addr = Option("115.99.217.196"), fcmToken = Option("some-token"), producer = Option("prod.diksha.app"), dspec = Option(deviceSpec), uaspec = Option(uaspec), first_access = Option(123456789), user_declared_state = None, user_declared_district = None), ActorRef.noSender)
-    verify(postgresDBMock, times(2)).readLocation(query)
+    IPLocationCache.setGeoLocMap(Map(1277333 -> DeviceLocation(1277333, "Asia", "IN", "India", "KA", "KA", "", "BANGALORE", "Telangana", "29", "Bangalore")))
+    IPLocationCache.setRangeTree(RangedSeq((1935923650l, 1935923660l) -> 1277333)(_._1, Ordering.Long))
+    deviceRegisterActorRef.tell(RegisterDevice(did = "device-002", headerIP = "115.99.217.196", ip_addr = Option("115.99.217.196"), fcmToken = Option("some-token"), producer = Option("sunbird.app"), dspec = Option(deviceSpec), uaspec = Option(uaspec), first_access = Option(123456789), user_declared_state = None, user_declared_district = None), ActorRef.noSender)
+    val jedis = redisUtil.getConnection(redisIndex);
+    val result = jedis.hgetAll("device-002").asScala;
+    
+    result.get("continent_name").get should be ("Asia");
+    result.get("country_code").get should be ("IN");
+    result.get("user_declared_district") should be (None);
+    result.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+    result.get("city").get should be ("BANGALORE");
+    result.get("district_custom").get should be ("Bangalore");
+    result.get("fcm_token").get should be ("some-token");
+    result.get("producer").get should be ("sunbird.app");
+    result.get("user_declared_state") should be (None);
+    result.get("devicespec").get should be ("""{"cpu":"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)","make":"Micromax Micromax A065","os":"Android 4.4.2"}""");
+    result.get("state_custom").get should be ("Telangana");
+    result.get("geoname_id").get should be ("1277333");
   }
 }

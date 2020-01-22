@@ -4,7 +4,7 @@ import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.Config
 import controllers.DeviceController
 import org.ekstep.analytics.api.service.{DeviceProfileService, DeviceRegisterService, ExperimentAPIService, SaveMetricsActor}
-import org.ekstep.analytics.api.util.{H2DBUtil, PostgresDBUtil, RedisUtil}
+import org.ekstep.analytics.api.util.{PostgresDBUtil, RedisUtil}
 import org.junit.runner.RunWith
 import org.mockito.Mockito.when
 import org.scalatest.junit.JUnitRunner
@@ -20,7 +20,6 @@ class DeviceControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
   private val configMock = mock[Config]
   private val configurationMock = mock[Configuration]
   private val redisUtilMock = mock[RedisUtil]
-  private val H2DBMock = mock[H2DBUtil]
   when(configMock.getString("postgres.table.geo_location_city.name")).thenReturn("geo_location_city")
   when(configMock.getString("postgres.table.geo_location_city_ipv4.name")).thenReturn("geo_location_city_ipv4")
   when(configMock.getBoolean("device.api.enable.debug.log")).thenReturn(true)
@@ -31,11 +30,11 @@ class DeviceControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
 
   "DeviceController" should "Should return success status when code is OK " in {
 
-    val deviceRegisterServiceActorRef = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtilMock, postgresDBMock, H2DBMock) {
+    val deviceRegisterServiceActorRef = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtilMock, postgresDBMock) {
       override val metricsActor = metricsActorProbe.ref
     })
 
-    val deviceProfileServiceActorRef = TestActorRef(new DeviceProfileService(configMock, redisUtilMock, H2DBMock) {
+    val deviceProfileServiceActorRef = TestActorRef(new DeviceProfileService(configMock, redisUtilMock) {
 
     })
 

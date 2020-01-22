@@ -178,6 +178,17 @@
 			<artifactId>h2</artifactId>
 			<version>1.4.200</version>
 		</dependency>
+		<dependency>
+		    <groupId>de.sciss</groupId>
+		    <artifactId>fingertree_2.11</artifactId>
+		    <version>1.5.4</version>
+		</dependency>
+		<dependency>
+		    <groupId>it.ozimov</groupId>
+		    <artifactId>embedded-redis</artifactId>
+		    <version>0.7.1</version>
+		    <scope>test</scope>
+		</dependency>
 
 	</dependencies>
 

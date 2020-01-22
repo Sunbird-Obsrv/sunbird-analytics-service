@@ -7,7 +7,7 @@ import com.typesafe.config.Config
 import is.tagomor.woothee.Classifier
 import javax.inject.{Inject, Named}
 import org.apache.logging.log4j.LogManager
-import org.ekstep.analytics.api.util.{H2DBUtil, _}
+import org.ekstep.analytics.api.util._
 import org.joda.time.{DateTime, DateTimeZone}
 import org.postgresql.util.PSQLException
 import redis.clients.jedis.Jedis
@@ -15,6 +15,7 @@ import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
+import ExecutionContext.Implicits.global
 
 case class RegisterDevice(did: String, headerIP: String, ip_addr: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, dspec: Option[String] = None, uaspec: Option[String] = None, first_access: Option[Long]= None, user_declared_state: Option[String] = None, user_declared_district: Option[String] = None)
 case class DeviceProfileLog(device_id: String, location: DeviceLocation, device_spec: Option[Map[String, AnyRef]] = None, uaspec: Option[String] = None, fcm_token: Option[String] = None, producer_id: Option[String] = None, first_access: Option[Long] = None, user_declared_state: Option[String] = None, user_declared_district: Option[String] = None)
@@ -29,17 +30,13 @@ class DeviceRegisterService @Inject()(
                                        @Named("save-metrics-actor") saveMetricsActor: ActorRef,
                                        config: Config,
                                        redisUtil: RedisUtil,
-                                       postgresDB: PostgresDBUtil,
-                                       H2DB: H2DBUtil
+                                       postgresDB: PostgresDBUtil
                                      ) extends Actor {
   
     implicit val className: String ="DeviceRegisterService"
     implicit val ec: ExecutionContext = context.system.dispatchers.lookup("device-register-actor-dispatcher")
-    val geoLocationCityTableName: String = config.getString("postgres.table.geo_location_city.name")
-    val geoLocationCityIpv4TableName: String = config.getString("postgres.table.geo_location_city_ipv4.name")
     val metricsActor: ActorRef = saveMetricsActor
     val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
-    // implicit val jedisConnection: Jedis = redisUtil.getConnection(deviceDatabaseIndex)
     private val logger = LogManager.getLogger("device-logger")
     private val enableDebugLogging = config.getBoolean("device.api.enable.debug.log")
 
@@ -142,30 +139,8 @@ class DeviceRegisterService @Inject()(
 
     def resolveLocation(ipAddress: String): DeviceLocation = {
         val ipAddressInt: Long = UnsignedInts.toLong(InetAddresses.coerceToInteger(InetAddresses.forString(ipAddress)))
-
-        val query =
-            s"""
-               |SELECT
-               |  glc.continent_name,
-               |  glc.country_iso_code country_code,
-               |  glc.country_name,
-               |  glc.subdivision_1_iso_code state_code,
-               |  glc.subdivision_1_name state,
-               |  glc.subdivision_2_name sub_div_2,
-               |  glc.city_name city,
-               |  glc.subdivision_1_custom_name state_custom,
-               |  glc.subdivision_1_custom_code state_code_custom,
-               |  glc.subdivision_2_custom_name district_custom
-               |FROM $geoLocationCityIpv4TableName gip,
-               |  $geoLocationCityTableName glc
-               |WHERE glc.country_iso_code = 'IN'
-               |  AND gip.geoname_id = glc.geoname_id
-               |  AND gip.network_start_integer <= $ipAddressInt
-               |  AND gip.network_last_integer >= $ipAddressInt
-               """.stripMargin
-
         metricsActor.tell(IncrementLocationDbHitCount, ActorRef.noSender)
-        postgresDB.readLocation(query).headOption.getOrElse(new DeviceLocation())
+        IPLocationCache.getDeviceLocation(ipAddressInt);
     }
 
     def isLocationResolved(loc: DeviceLocation): Boolean = {

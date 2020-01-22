@@ -24,7 +24,7 @@ class ApplicationSpec extends BaseSpec {
 
 	"Client Log API" should new WithApplication {
 		"should return error response for invalid request" in {
-			val request = """ {"request":{"context":{"pdata":{"id":"prod.diksha.portal","ver":"1.0","pid":"contentPlayer"}},"edata":{"dspec":{"os":"","make":"","mem":0,"idisk":"","edisk":"","scrn":"","camera":"","cpu":"","sims":0,"uaspec":{"agent":"","ver":"","system":"","platform":"","raw":""}},"crashts":"1560346371","crash_logs":"Exception in thread \"main\" java.lang.NullPointerException\n        at com.example.myproject.Book.getTitle(Book.java:16)\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\n"}}} """
+			val request = """ {"request":{"context":{"pdata":{"id":"sunbird.portal","ver":"1.0","pid":"contentPlayer"}},"edata":{"dspec":{"os":"","make":"","mem":0,"idisk":"","edisk":"","scrn":"","camera":"","cpu":"","sims":0,"uaspec":{"agent":"","ver":"","system":"","platform":"","raw":""}},"crashts":"1560346371","crash_logs":"Exception in thread \"main\" java.lang.NullPointerException\n        at com.example.myproject.Book.getTitle(Book.java:16)\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\n"}}} """
 			post("/data/v1/client/logs", request)
 			val response = post("/data/v1/client/logs", request)
 			hasClientError(response)
@@ -32,7 +32,7 @@ class ApplicationSpec extends BaseSpec {
 		}
 
 		"should return success response for valid request" in {
-			val request = """ {"request":{"context":{"pdata":{"id":"prod.diksha.portal","ver":"1.0","pid":"contentPlayer"},"did":"345345-345345-345345-345345"},"edata":{"dspec":{"os":"","make":"","mem":0,"idisk":"","edisk":"","scrn":"","camera":"","cpu":"","sims":0,"uaspec":{"agent":"","ver":"","system":"","platform":"","raw":""}},"crashts":"1560346371","crash_logs":"Exception in thread \"main\" java.lang.NullPointerException\n        at com.example.myproject.Book.getTitle(Book.java:16)\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\n"}}} """
+			val request = """ {"request":{"context":{"pdata":{"id":"sunbird.portal","ver":"1.0","pid":"contentPlayer"},"did":"345345-345345-345345-345345"},"edata":{"dspec":{"os":"","make":"","mem":0,"idisk":"","edisk":"","scrn":"","camera":"","cpu":"","sims":0,"uaspec":{"agent":"","ver":"","system":"","platform":"","raw":""}},"crashts":"1560346371","crash_logs":"Exception in thread \"main\" java.lang.NullPointerException\n        at com.example.myproject.Book.getTitle(Book.java:16)\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\n"}}} """
 			post("/data/v1/client/logs", request)
 			val response = post("/data/v1/client/logs", request)
 			hasClientError(response)

@@ -10,7 +10,7 @@ class TestClientLogsAPIService extends BaseSpec {
 
   "Client Log API Service" should "validate the request" in {
     // did is null
-    val INVALIDREQUEST1 = "{\"request\":{\"pdata\":{\"id\":\"contentPlayer\",\"ver\":\"1.0\",\"pid\":\"prod.diksha.portal\"},\"context\":{\"dspec\":{\"os\":\"mac\",\"make\":\"\",\"mem\":0,\"idisk\":\"\",\"edisk\":\"\",\"scrn\":\"\",\"camera\":\"\",\"cpu\":\"\",\"sims\":0,\"uaspec\":{\"agent\":\"\",\"ver\":\"\",\"system\":\"\",\"platform\":\"\",\"raw\":\"\"}}},\"logs\":[{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"},{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"}]}}"
+    val INVALIDREQUEST1 = "{\"request\":{\"pdata\":{\"id\":\"contentPlayer\",\"ver\":\"1.0\",\"pid\":\"sunbird.portal\"},\"context\":{\"dspec\":{\"os\":\"mac\",\"make\":\"\",\"mem\":0,\"idisk\":\"\",\"edisk\":\"\",\"scrn\":\"\",\"camera\":\"\",\"cpu\":\"\",\"sims\":0,\"uaspec\":{\"agent\":\"\",\"ver\":\"\",\"system\":\"\",\"platform\":\"\",\"raw\":\"\"}}},\"logs\":[{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"},{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"}]}}"
     val requestObj1 = JSONUtils.deserialize[ClientLogRequest](INVALIDREQUEST1)
 
     requestObj1.validate.status should be(false)
@@ -52,7 +52,7 @@ class TestClientLogsAPIService extends BaseSpec {
     requestObj7.validate.msg should be("property: pdata.pid is null or empty!")
 
     // context, with pdata.ver, did request body
-    val INVALIDREQUEST8 = "{\"request\":{\"context\":{\"did\":\"13123-13123-123123-1231231\"}, \"pdata\":{\"id\":\"in.ekstep\",\"pid\":\"prod.diksha.app\"}, \"logs\":[]}}"
+    val INVALIDREQUEST8 = "{\"request\":{\"context\":{\"did\":\"13123-13123-123123-1231231\"}, \"pdata\":{\"id\":\"in.ekstep\",\"pid\":\"sunbird.app\"}, \"logs\":[]}}"
     val requestObj8 = JSONUtils.deserialize[ClientLogRequest](INVALIDREQUEST8)
 
     requestObj8.validate.status should be(false)
@@ -60,7 +60,7 @@ class TestClientLogsAPIService extends BaseSpec {
 
 
     // context, with pdata.id, did, without logs request body
-    val INVALIDREQUEST11 = "{\"request\":{\"context\":{\"did\":\"13123-13123-123123-1231231\"},\"pdata\":{\"id\":\"in.ekstep\",\"pid\":\"prod.diksha.app\",\"ver\":\"1.0\"}}}"
+    val INVALIDREQUEST11 = "{\"request\":{\"context\":{\"did\":\"13123-13123-123123-1231231\"},\"pdata\":{\"id\":\"in.ekstep\",\"pid\":\"sunbird.app\",\"ver\":\"1.0\"}}}"
     val requestObj11 = JSONUtils.deserialize[ClientLogRequest](INVALIDREQUEST11)
 
     requestObj11.validate.status should be(false)
@@ -68,7 +68,7 @@ class TestClientLogsAPIService extends BaseSpec {
   }
 
   "request validation" should "pass validation for valid request" in {
-    val VALIDREQUEST1 = "{\"request\":{\"pdata\":{\"id\":\"contentPlayer\",\"ver\":\"1.0\",\"pid\":\"prod.diksha.portal\"},\"context\":{\"did\":\"1242-234234-24234-234234\",\"dspec\":{\"os\":\"mac\",\"make\":\"\",\"mem\":0,\"idisk\":\"\",\"edisk\":\"\",\"scrn\":\"\",\"camera\":\"\",\"cpu\":\"\",\"sims\":0,\"uaspec\":{\"agent\":\"\",\"ver\":\"\",\"system\":\"\",\"platform\":\"\",\"raw\":\"\"}},\"extras\":{\"key-123\":\"value-123\",\"key-1234\":\"value-123\",\"key-1235\":\"value-123\"}},\"logs\":[{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"},{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"}]}}"
+    val VALIDREQUEST1 = "{\"request\":{\"pdata\":{\"id\":\"contentPlayer\",\"ver\":\"1.0\",\"pid\":\"sunbird.portal\"},\"context\":{\"did\":\"1242-234234-24234-234234\",\"dspec\":{\"os\":\"mac\",\"make\":\"\",\"mem\":0,\"idisk\":\"\",\"edisk\":\"\",\"scrn\":\"\",\"camera\":\"\",\"cpu\":\"\",\"sims\":0,\"uaspec\":{\"agent\":\"\",\"ver\":\"\",\"system\":\"\",\"platform\":\"\",\"raw\":\"\"}},\"extras\":{\"key-123\":\"value-123\",\"key-1234\":\"value-123\",\"key-1235\":\"value-123\"}},\"logs\":[{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"},{\"id\":\"13123-123123-12312-3123\",\"ts\":1560346371,\"log\":\"Exception in thread \\\"main\\\" java.lang.NullPointerException\\n        at com.example.myproject.Book.getTitle(Book.java:16)\\n        at com.example.myproject.Author.getBookTitles(Author.java:25)\\n        at com.example.myproject.Bootstrap.main(Bootstrap.java:14)\\n\"}]}}"
     val requestObj1 = JSONUtils.deserialize[ClientLogRequest](VALIDREQUEST1)
 
     requestObj1.validate.status should be(true)

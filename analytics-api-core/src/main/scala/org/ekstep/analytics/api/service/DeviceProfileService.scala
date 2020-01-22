@@ -10,19 +10,20 @@ import redis.clients.jedis.Jedis
 import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scala.collection.JavaConverters._
+import scala.concurrent.{ExecutionContext, Future, blocking}
+import ExecutionContext.Implicits.global
+import akka.pattern.{ ask, pipe }
+import org.ekstep.analytics.framework.util.CommonUtil
 
 case class DeviceProfileRequest(did: String, headerIP: String)
 
 class DeviceProfileService @Inject()(
                                       config: Config,
-                                      redisUtil: RedisUtil,
-                                      H2DB: H2DBUtil
+                                      redisUtil: RedisUtil
                                     ) extends Actor {
 
   implicit val className: String ="DeviceProfileService"
   val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
-  val geoLocationCityTableName: String = config.getString("postgres.table.geo_location_city.name")
-  val geoLocationCityIpv4TableName: String = config.getString("postgres.table.geo_location_city_ipv4.name")
 
   override def preStart { println("starting DeviceProfileService") }
 
@@ -39,6 +40,7 @@ class DeviceProfileService @Inject()(
       try {
         val result = getDeviceProfile(deviceProfile)
         sender() ! result
+
       } catch {
         case ex: JedisConnectionException =>
           ex.printStackTrace()
@@ -60,7 +62,8 @@ class DeviceProfileService @Inject()(
   def getDeviceProfile(deviceProfileRequest: DeviceProfileRequest): Option[DeviceProfile] = {
 
     if (deviceProfileRequest.headerIP.nonEmpty) {
-      val ipLocationFromH2 = resolveLocationFromH2(deviceProfileRequest.headerIP)
+      
+      val ipLocationFromH2 = resolveLocation(deviceProfileRequest.headerIP)
       val did = deviceProfileRequest.did
 
       // logging resolved location details
@@ -95,28 +98,10 @@ class DeviceProfileService @Inject()(
     }
   }
 
-  def resolveLocationFromH2(ipAddress: String): DeviceStateDistrict = {
+  def resolveLocation(ipAddress: String): DeviceStateDistrict = {
     val ipAddressInt: Long = UnsignedInts.toLong(InetAddresses.coerceToInteger(InetAddresses.forString(ipAddress)))
-
-    val query =
-      s"""
-         |SELECT
-         |  glc.subdivision_1_name state,
-         |  glc.subdivision_2_custom_name district_custom
-         |FROM $geoLocationCityIpv4TableName gip,
-         |  $geoLocationCityTableName glc
-         |WHERE gip.geoname_id = glc.geoname_id
-         |  AND gip.network_start_integer <= $ipAddressInt
-         |  AND gip.network_last_integer >= $ipAddressInt
-               """.stripMargin
-
-    H2DB.readLocation(query)
+    IPLocationCache.getIpLocation(ipAddressInt);
   }
 
 }
 
-/*
-object DeviceProfileService {
-  def props = Props[DeviceProfileService].withDispatcher("device-profile-actor")
-}
-*/

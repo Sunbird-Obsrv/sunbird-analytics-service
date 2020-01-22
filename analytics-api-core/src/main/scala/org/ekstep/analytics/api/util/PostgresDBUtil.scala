@@ -32,7 +32,7 @@ class PostgresDBUtil {
     def readGeoLocationCity(sqlString: String): List[GeoLocationCity] = {
         SQL(sqlString).map(rs => GeoLocationCity(rs)).list().apply()
     }
-
+    
     def readGeoLocationRange(sqlString: String): List[GeoLocationRange] = {
         SQL(sqlString).map(rs => GeoLocationRange(rs)).list().apply()
     }
@@ -57,12 +57,12 @@ class PostgresDBUtil {
     }
 }
 
-case class DeviceLocation(continentName: String, countryCode: String, countryName: String, stateCode: String,
+case class DeviceLocation(geonameId: Int, continentName: String, countryCode: String, countryName: String, stateCode: String,
                           state: String, subDivsion2: String, city: String,
                           stateCustom: String, stateCodeCustom: String, districtCustom: String) {
-    def this() = this("", "", "", "", "", "", "","","","")
+    def this() = this(0, "", "", "", "", "", "", "","","","")
 
-    def toMap() = Map("continent_name" -> continentName,
+    def toMap() = Map("geoname_id" -> geonameId.toString(), "continent_name" -> continentName,
         "country_code" -> countryCode, "country_name" -> countryName, "state_code" -> stateCode,
         "state" -> state, "city" -> city, "state_custom" -> stateCustom, "state_code_custom" -> stateCodeCustom,
         "district_custom" -> districtCustom)
@@ -70,6 +70,7 @@ case class DeviceLocation(continentName: String, countryCode: String, countryNam
 
 object DeviceLocation extends SQLSyntaxSupport[DeviceLocation] {
     def apply(rs: WrappedResultSet) = new DeviceLocation(
+        rs.int("geoname_id"),
         rs.string("continent_name"),
         rs.string("country_code"),
         rs.string("country_name"),
@@ -106,4 +107,5 @@ object GeoLocationRange extends SQLSyntaxSupport[GeoLocationRange] {
         rs.int("geoname_id")
     )
 }
+
 // $COVERAGE-ON$

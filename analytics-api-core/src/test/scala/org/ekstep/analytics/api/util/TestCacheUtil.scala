@@ -12,19 +12,16 @@ import org.mockito.Mockito._
 class TestCacheUtil extends BaseSpec {
 
     val postgresDBMock = mock[PostgresDBUtil]
-    val H2DBUtilMock = mock[H2DBUtil]
     val resultSetMock = mock[ResultSet]
 
-    val cacheUtil = new CacheUtil(postgresDBMock, H2DBUtilMock)
+    val cacheUtil = new CacheUtil(postgresDBMock)
 
     "Cache util " should "refresh device location cache" in {
       when(postgresDBMock.readGeoLocationCity(ArgumentMatchers.any())).thenReturn(List(GeoLocationCity(geoname_id = 29, subdivision_1_name = "Karnataka", subdivision_2_custom_name = "Karnataka")))
       when(postgresDBMock.readGeoLocationRange(ArgumentMatchers.any())).thenReturn(List(GeoLocationRange(1234, 1234, 1)))
-      when(H2DBUtilMock.execute(ArgumentMatchers.any())).thenReturn(resultSetMock)
       when(resultSetMock.next()).thenReturn(true).thenReturn(true).thenReturn(false)
 
       cacheUtil.initDeviceLocationCache()
-      verify(H2DBUtilMock, times(6)).executeQuery(ArgumentMatchers.any())
 
       when(postgresDBMock.readGeoLocationCity(ArgumentMatchers.any())).thenThrow(new RuntimeException("something went wrong!"))
       cacheUtil.initDeviceLocationCache()
@@ -45,11 +42,11 @@ class TestCacheUtil extends BaseSpec {
       reset(postgresDBMock)
       when(postgresDBMock.read(ArgumentMatchers.any())).thenReturn(List(ConsumerChannel(consumerId = "Ekstep", channel = "in.ekstep", status = 0, createdBy = "System", createdOn = new Timestamp(new Date().getTime), updatedOn = new Timestamp(new Date().getTime))))
       val cacheUtilSpy = spy(cacheUtil)
-      cacheUtilSpy.getConsumerChannlTable()
+      cacheUtilSpy.getConsumerChannelTable()
       verify(cacheUtilSpy, times(1)).initConsumerChannelCache()
 
       when(postgresDBMock.read(ArgumentMatchers.any())).thenReturn(List(ConsumerChannel(consumerId = "Ekstep", channel = "in.ekstep", status = 0, createdBy = "System", createdOn = new Timestamp(new Date().getTime), updatedOn = new Timestamp(new Date().getTime))))
-      val result = cacheUtilSpy.getConsumerChannlTable()
+      val result = cacheUtilSpy.getConsumerChannelTable()
       result.isInstanceOf[Table[String, String, Integer]] should be (true)
     }
 

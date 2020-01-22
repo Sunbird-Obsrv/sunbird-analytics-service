@@ -17,7 +17,7 @@ class TestCacheRefreshActor extends BaseSpec {
     val cacheUtilMock = mock[CacheUtil]
     val cacheRefreshActorRef = TestActorRef(new CacheRefreshActor(cacheUtilMock))
 
-    cacheRefreshActorRef.tell(DeviceLocation(continentName = "Asia", countryCode = "IN", countryName = "India", stateCode = "KA",
+    cacheRefreshActorRef.tell(DeviceLocation(1234, continentName = "Asia", countryCode = "IN", countryName = "India", stateCode = "KA",
       state = "Karnataka", subDivsion2 = "", city = "Bangalore",
       stateCustom = "Karnataka", stateCodeCustom = "29", districtCustom = ""), ActorRef.noSender)
 

@@ -12,7 +12,7 @@ class TestElasticsearchService extends BaseSpec {
 
   "Elasticsearch service: searchExperiment method" should "search and return data " in {
 
-    val response = ESservice.searchExperiment(Map("deviceId" -> "device3", "userId" -> "user3", "url" -> "http://xyz.com", "producer"-> "prod.diksha.app"))
+    val response = ESservice.searchExperiment(Map("deviceId" -> "device3", "userId" -> "user3", "url" -> "http://xyz.com", "producer"-> "sunbird.app"))
     response.map { data => data.map {
       expData => {
         expData.userId should be eq("user3")

@@ -120,7 +120,7 @@ class JobController @Inject() (
 
   def authorizeDataExhaustRequest(consumerId: String, channelId: String): Boolean = {
     APILogger.log(s"Authorizing $consumerId and $channelId")
-    val status = Option(cacheUtil.getConsumerChannlTable().get(consumerId, channelId))
+    val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
     if (status.getOrElse(0) == 1) true else false
   }
 

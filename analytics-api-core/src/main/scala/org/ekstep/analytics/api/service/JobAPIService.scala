@@ -6,7 +6,7 @@ import java.util.Calendar
 import akka.actor.Actor
 import com.typesafe.config.Config
 import org.apache.commons.lang3.StringUtils
-import org.ekstep.analytics.api.util.{APILogger, CommonUtil, DBUtil}
+import org.ekstep.analytics.api.util.{APILogger, CommonUtil, CassandraUtil}
 import org.ekstep.analytics.api.{APIIds, JobStats, OutputFormat, _}
 import org.ekstep.analytics.framework.util.JSONUtils
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
@@ -50,7 +50,7 @@ object JobAPIService {
   }
 
   def getDataRequest(clientKey: String, requestId: String)(implicit config: Config): Response = {
-    val job = DBUtil.getJobRequest(requestId, clientKey)
+    val job = CassandraUtil.getJobRequest(requestId, clientKey)
     if (null == job) {
       CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and client_key", ResponseCode.OK.toString)
     } else {
@@ -61,7 +61,7 @@ object JobAPIService {
 
   def getDataRequestList(clientKey: String, limit: Int)(implicit config: Config): Response = {
     val currDate = DateTime.now()
-    val jobRequests = DBUtil.getJobRequestList(clientKey)
+    val jobRequests = CassandraUtil.getJobRequestList(clientKey)
     val jobs = jobRequests.filter { f => f.dt_expiration.getOrElse(currDate).getMillis >= currDate.getMillis }
     val result = jobs.take(limit).map { x => _createJobResponse(x) }
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
@@ -104,7 +104,7 @@ object JobAPIService {
     val outputFormat = body.request.output_format.getOrElse(config.getString("data_exhaust.output_format"))
     val datasetId = body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default"))
     val requestId = _getRequestId(body.request.filter.get, outputFormat, datasetId, body.params.get.client_key.get)
-    val job = DBUtil.getJobRequest(requestId, body.params.get.client_key.get)
+    val job = CassandraUtil.getJobRequest(requestId, body.params.get.client_key.get)
     val usrReq = body.request
     val useFilter = usrReq.filter.getOrElse(Filter(None, None, None, None, None, None, None, None, None, Option(channel)))
     val filter = Filter(None, None, None, useFilter.tag, useFilter.tags, useFilter.start_date, useFilter.end_date, useFilter.events, useFilter.app_id, Option(channel))
@@ -186,7 +186,7 @@ object JobAPIService {
     val status = JobStatus.SUBMITTED.toString()
     val jobSubmitted = DateTime.now()
     val jobRequest = JobRequest(Option(clientKey), Option(requestId), None, Option(status), Option(JSONUtils.serialize(request)), Option(iteration), Option(jobSubmitted), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Option("DATA_EXHAUST"))
-    DBUtil.saveJobRequest(Array(jobRequest))
+    CassandraUtil.saveJobRequest(Array(jobRequest))
     jobRequest
   }
 

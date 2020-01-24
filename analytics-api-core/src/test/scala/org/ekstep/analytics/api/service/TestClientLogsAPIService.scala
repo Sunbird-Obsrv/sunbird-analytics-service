@@ -57,6 +57,12 @@ class TestClientLogsAPIService extends BaseSpec {
 
     requestObj8.validate.status should be(false)
     requestObj8.validate.msg should be("property: pdata.ver is null or empty!")
+    
+    val INVALIDREQUEST9 = "{\"request\":{\"context\":{\"did\":\"13123-13123-123123-1231231\"}, \"pdata\":{\"id\":\"in.ekstep\",\"pid\":\"sunbird.app\",\"ver\":\"1.0\"}, \"logs\":[{\"id\":\"Test\"}]}}"
+    val requestObj9 = JSONUtils.deserialize[ClientLogRequest](INVALIDREQUEST9)
+
+    requestObj9.validate.status should be(false)
+    requestObj9.validate.msg should be("property: logs, mandatory fields are missing or type mismatch!")
 
 
     // context, with pdata.id, did, without logs request body

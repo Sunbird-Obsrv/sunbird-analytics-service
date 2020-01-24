@@ -24,7 +24,7 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
     if (embeddedCassandraMode) {
       System.setProperty("cassandra.unsafesystem", "true")
       EmbeddedCassandraServerHelper.startEmbeddedCassandra(20000L)
-      val session = DBUtil.session
+      val session = CassandraUtil.session
       val dataLoader = new CQLDataLoader(session);
       dataLoader.load(new FileCQLDataSet(AppConf.getConfig("cassandra.cql_path"), true, true));
     }
@@ -108,7 +108,7 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
     val requestId = response.result.getOrElse(Map()).getOrElse("request_id", "").asInstanceOf[String]
     StringUtils.isNotEmpty(requestId) should be(true)
 
-    DBUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED' WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
+    CassandraUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED' WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
     val getResponse = JobAPIService.getDataRequest("dev-portal", requestId)
     val failStatus = getResponse.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
     StringUtils.isNotEmpty(failStatus) should be(true)
@@ -128,7 +128,7 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
   it should "return the list of jobs in descending order" in {
 
-    DBUtil.cluster.connect("local_platform_db").execute("DELETE FROM local_platform_db.job_request WHERE client_key='partner1'")
+    CassandraUtil.cluster.connect("local_platform_db").execute("DELETE FROM local_platform_db.job_request WHERE client_key='partner1'")
     val request_data1 = """{"filter":{"start_date":"2016-11-19","end_date":"2016-11-20","tags":["becb887fe82f24c644482eb30041da6d88bd8150"]}}"""
     val request_data2 = """{"filter":{"start_date":"2016-11-19","end_date":"2016-11-20","tags":["test-tag"],"events":["OE_ASSESS"]}}"""
 
@@ -138,7 +138,7 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
       JobRequest(Option("partner1"), Option("273645"), Option("test-job-id"), Option("COMPLETED"), Option(request_data2),
         Option(1), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), Option("https://test-location"), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), None, None, None, None, None, Option(123234), Option(532), Option(12343453L), None, None, None, None, None))
 
-    DBUtil.saveJobRequest(requests)
+    CassandraUtil.saveJobRequest(requests)
 
     val res = JobAPIService.getDataRequestList("partner1", 10)
     val resultMap = res.result.get

@@ -4,7 +4,7 @@ import org.apache.commons.lang3.StringUtils
 import org.cassandraunit.CQLDataLoader
 import org.cassandraunit.dataset.cql.FileCQLDataSet
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
-import org.ekstep.analytics.api.util.DBUtil
+import org.ekstep.analytics.api.util.CassandraUtil
 import org.ekstep.analytics.api.util.JSONUtils
 import org.ekstep.analytics.framework.conf.AppConf
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -21,7 +21,7 @@ class BaseSpec extends FlatSpec with Matchers with BeforeAndAfterAll with Mockit
     if (embeddedCassandraMode) {
       System.setProperty("cassandra.unsafesystem", "true")
 		  EmbeddedCassandraServerHelper.startEmbeddedCassandra(30000L)
-		  val session = DBUtil.session
+		  val session = CassandraUtil.session
 		  val dataLoader = new CQLDataLoader(session);
 		  dataLoader.load(new FileCQLDataSet(AppConf.getConfig("cassandra.cql_path"), true, true));
     }

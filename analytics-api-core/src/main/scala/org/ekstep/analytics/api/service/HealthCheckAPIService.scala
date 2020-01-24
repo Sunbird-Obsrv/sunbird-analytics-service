@@ -1,7 +1,7 @@
 package org.ekstep.analytics.api.service
 
 import org.ekstep.analytics.api.util.CommonUtil
-import org.ekstep.analytics.api.util.DBUtil
+import org.ekstep.analytics.api.util.CassandraUtil
 import org.ekstep.analytics.api.util.ElasticsearchService
 import org.ekstep.analytics.api.util.JSONUtils
 import org.ekstep.analytics.api.util.PostgresDBUtil
@@ -28,7 +28,7 @@ object HealthCheckAPIService {
 
     private def checkCassandraConnection(): Boolean = {
         try {
-            DBUtil.checkCassandraConnection
+            CassandraUtil.checkCassandraConnection
         } catch {
             // $COVERAGE-OFF$ Disabling scoverage as the below code cannot be covered
             // TODO: Need to get confirmation from amit.
@@ -58,8 +58,7 @@ object HealthCheckAPIService {
             val postgresStatus = ServiceHealthReport("Postgres Database", checkPostgresConnection())
             val redisStatus = ServiceHealthReport("Redis Database", checkRedisConnection())
             val ESStatus = ServiceHealthReport("Elasticsearch Database", checkElasticsearchConnection())
-            val DBStatus = ServiceHealthReport("Database Health", cassandraStatus.healthy && postgresStatus.healthy && redisStatus.healthy && ESStatus.healthy)
-            Array(cassandraStatus, postgresStatus, redisStatus, ESStatus, DBStatus);
+            Array(cassandraStatus, postgresStatus, redisStatus, ESStatus);
         } catch {
             // $COVERAGE-OFF$ Disabling scoverage as the below code cannot be covered
             case ex: Exception =>
@@ -69,8 +68,4 @@ object HealthCheckAPIService {
         }
     }
     
-//    def main(args: Array[String]): Unit = {
-//        implicit val sc = CommonUtil.getSparkContext(10, "Test");
-//        println(getHealthStatus);
-//    }
 }

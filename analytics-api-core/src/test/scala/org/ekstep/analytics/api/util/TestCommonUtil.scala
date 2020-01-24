@@ -38,5 +38,7 @@ class TestCommonUtil extends BaseSpec {
         CommonUtil.getRemainingHours() should be(remainingTime)
         CommonUtil.getWeeksBetween(1451650400000L, 1454650400000L) should be(5);
         
+        CommonUtil.getPeriod("2020-10-1o") should be (0);
+        
     }
 }

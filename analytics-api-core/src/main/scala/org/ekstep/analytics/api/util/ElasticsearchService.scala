@@ -17,13 +17,13 @@ trait ESsearch {
 class ElasticsearchService extends ESsearch {
 
     implicit val className = "org.ekstep.analytics.api.util.ElasticsearchService"
-    private lazy val config: Config = ConfigFactory.load()
-    private lazy val host =  config.getString("elasticsearch.host")
-    private lazy val port = config.getInt("elasticsearch.port")
-    private lazy val fieldWeight: String =  config.getString("elasticsearch.searchExperiment.fieldWeight")
+    
+    private lazy val host =  AppConfig.getString("elasticsearch.host")
+    private lazy val port = AppConfig.getInt("elasticsearch.port")
+    private lazy val fieldWeight: String =  AppConfig.getString("elasticsearch.searchExperiment.fieldWeight")
     private lazy val fieldWeightMap: Map[String, Double] = JSONUtils.deserialize[Map[String, Double]](fieldWeight)
-    private lazy val queryWeight = config.getDouble("elasticsearch.searchExperiment.matchQueryScore")
-    private lazy val searchExperimentIndex = config.getString("elasticsearch.searchExperiment.index")
+    private lazy val queryWeight = AppConfig.getDouble("elasticsearch.searchExperiment.matchQueryScore")
+    private lazy val searchExperimentIndex = AppConfig.getString("elasticsearch.searchExperiment.index")
     implicit val executor =  scala.concurrent.ExecutionContext.global
 
     def getConnection = HttpClient(ElasticsearchClientUri(host, port))

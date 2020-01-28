@@ -49,7 +49,7 @@ object HealthCheckAPIService {
 
     private def checkElasticsearchConnection(): Boolean = {
         val es = new ElasticsearchService()
-        es.checkConnection
+        es.healthCheck
     }
 
     private def getChecks(): Array[ServiceHealthReport] = {

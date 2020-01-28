@@ -4,8 +4,10 @@ import org.ekstep.analytics.api.util.CommonUtil.monthPeriod
 import org.ekstep.analytics.api.{BaseSpec, Range, ResponseCode}
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.joda.time.{DateTime, DateTimeZone, Duration}
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 
-class TestCommonUtil extends BaseSpec {
+class TestCommonUtil extends FlatSpec with Matchers {
 
     "CommonUtil" should "test all utility methods" in {
 

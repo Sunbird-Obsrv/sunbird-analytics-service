@@ -188,6 +188,6 @@ class TestExperimentService extends FlatSpec with Matchers with BeforeAndAfterAl
     val experimentData = ExperimentData(id = "exp1", name = "experiment1", startDate = "2019-11-21",
       endDate = "2019-11-22", key = "", expType = "", userId = "", deviceId = "", userIdMod = 0, deviceIdMod = 0)
     val result = experimentService.resolveExperiment(experimentData)
-    result.getOrElse(None) should be eq(experimentData)
+    result.getOrElse(None) should be (experimentData)
   }
 }

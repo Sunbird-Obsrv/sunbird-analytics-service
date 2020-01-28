@@ -32,6 +32,7 @@ import org.ekstep.analytics.api.service.JobAPIService.GetDataRequest
 class TestJobAPIService extends BaseSpec  {
   
   implicit val mockFc = mock[FrameworkContext];
+  private val mockStorageService = mock[BaseStorageService]
   private implicit val system: ActorSystem = ActorSystem("test-actor-system", config)
   val jobApiServiceActorRef = TestActorRef(new JobAPIService)
   implicit val executionContext: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.global
@@ -116,6 +117,9 @@ class TestJobAPIService extends BaseSpec  {
     response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20"}}}""", "in.ekstep")
     response.params.errmsg should be ("tags are empty")
     
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":[]}}}""", "in.ekstep")
+    response.params.errmsg should be ("tags are empty")
+    
     response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"dataset_id":"eks-consumption-ra","output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
     response.params.errmsg.indexOf("invalid dataset_id. It should be one of") should be (0)
     
@@ -132,19 +136,26 @@ class TestJobAPIService extends BaseSpec  {
 
   "JobAPIService" should "submit the failed request for retry" in {
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}"""
-    val response = JobAPIService.dataRequest(request, "in.ekstep")
+    var response = JobAPIService.dataRequest(request, "in.ekstep")
 
     val requestId = response.result.getOrElse(Map()).getOrElse("request_id", "").asInstanceOf[String]
     StringUtils.isNotEmpty(requestId) should be(true)
 
     CassandraUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED' WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
-    val getResponse = JobAPIService.getDataRequest("dev-portal", requestId)
-    val failStatus = getResponse.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
-    StringUtils.isNotEmpty(failStatus) should be(true)
-    failStatus should be("FAILED")
-    val response2 = JobAPIService.dataRequest(request, "in.ekstep")
-    val status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    response = JobAPIService.getDataRequest("dev-portal", requestId)
+    var status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    StringUtils.isNotEmpty(status) should be(true)
+    status should be("FAILED")
+    
+    response = JobAPIService.dataRequest(request, "in.ekstep")
+    status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
     status should be("SUBMITTED")
+    
+    CassandraUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED', iteration = 3 WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
+    response = JobAPIService.dataRequest(request, "in.ekstep")
+    status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    StringUtils.isNotEmpty(status) should be(true)
+    status should be("FAILED")
   }
 
   "JobAPIService" should "not submit the permanently failed/max attempts reached request while doing retry" in {
@@ -248,18 +259,38 @@ class TestJobAPIService extends BaseSpec  {
     resObj.responseCode should be("OK")
   }
 
-  it should "Return the Success API Response" in {
-    val mockStorageService = mock[BaseStorageService]
+  it should "get the channel data for raw data" in {
+    
+    reset(mockStorageService)
     when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
     when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
     when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
-    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List(""));
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
     doNothing().when(mockStorageService).closeContext()
+    
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", None)
+    resObj.responseCode should be("OK")
+    val res = resObj.result.getOrElse(Map())
+    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls.size should be (0)
+  }
+  
+  it should "get the channel data for summary data" in {
+    
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
+    doNothing().when(mockStorageService).closeContext()
+    
     val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", Option("device-summary"))
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
-    println("res" + res)
-    res.contains("telemetryURLs") should be(true)
+    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls.size should be (1)
+    urls.head should be ("https://sunbird.org/test/signed")
+    
   }
   
   it should "test all exception branches" in {

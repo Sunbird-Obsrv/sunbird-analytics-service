@@ -47,7 +47,9 @@ class SaveMetricsActor @Inject()(kafkaUtil: KafkaUtil) extends Actor {
     case IncrementLocationDbSuccessCount => locationDbSuccessCount += 1
     case IncrementLocationDbErrorCount => locationDbErrorCount += 1
     case IncrementLogDeviceRegisterSuccessCount => logDeviceRegisterSuccessCount += 1
-    case SaveMetrics => writeMetricsToLog()
+    case SaveMetrics => {
+      if(apiCalls > 0) writeMetricsToLog()
+    }
   }
   
   def getCounts(): (Int, Int, Int, Int, Int, Int) = {

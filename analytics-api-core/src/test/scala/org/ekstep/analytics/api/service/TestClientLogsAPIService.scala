@@ -2,9 +2,14 @@ package org.ekstep.analytics.api.service
 
 import org.ekstep.analytics.api.BaseSpec
 import org.ekstep.analytics.api.util.JSONUtils
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.BeforeAndAfterAll
 
 
-class TestClientLogsAPIService extends BaseSpec {
+class TestClientLogsAPIService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
+  
   val clientLogsAPIServiceMock: ClientLogsAPIService = mock[ClientLogsAPIService]
   val clientLogRequest: ClientLogRequest = mock[ClientLogRequest]
 

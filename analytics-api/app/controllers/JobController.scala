@@ -112,8 +112,6 @@ class JobController @Inject() (
             cacheUtil.initConsumerChannelCache()
           case "DeviceLocation" =>
             cacheUtil.initDeviceLocationCache()
-          case _ =>
-            cacheUtil.initCache()
       }
       result("OK", JSONUtils.serialize(CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("msg" -> s"$cacheType cache refreshed successfully"))))
   }

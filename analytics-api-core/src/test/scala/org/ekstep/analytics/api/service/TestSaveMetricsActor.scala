@@ -52,19 +52,17 @@ class TestSaveMetricsActor extends FlatSpec with Matchers with BeforeAndAfterAll
       counts._6 should be (0)
       
       val topic = AppConfig.getString("kafka.metrics.event.topic");
-      val msg = consumeNumberStringMessagesFrom(topic, 2);
+      val msg = consumeFirstMessageFrom(topic);
       msg should not be (null);
-      val map = JSONUtils.deserialize[Map[String, AnyRef]](msg.head);
-      val map2 = JSONUtils.deserialize[Map[String, AnyRef]](msg.last);
+      val map = JSONUtils.deserialize[Map[String, AnyRef]](msg);
       
-      val resultMap = if(map.get("location-db-hit-count").get.equals(3)) map else map2;
-      Console.println("map", map, "map2", map2, "resultMap", resultMap);
-      resultMap.get("location-db-hit-count").get should be (3)
-      resultMap.get("log-device-register-success-count").get should be (1)
-      resultMap.get("location-db-miss-count").get should be (2)
-      resultMap.get("api-calls").get should be (4)
-      resultMap.get("location-db-success-count").get should be (3)
-      resultMap.get("location-db-error-count").get should be (1)
+      Console.println("map", map);
+      map.get("location-db-hit-count").get should be (3)
+      map.get("log-device-register-success-count").get should be (1)
+      map.get("location-db-miss-count").get should be (2)
+      map.get("api-calls").get should be (4)
+      map.get("location-db-success-count").get should be (3)
+      map.get("location-db-error-count").get should be (1)
       
     }
   }

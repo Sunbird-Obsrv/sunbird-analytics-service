@@ -22,7 +22,7 @@ import scala.util.Sorting
 
 // TODO: Need to refactor the entire Service.
 object JobAPIService {
-
+  
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
 
   case class DataRequest(request: String, channel: String, config: Config)
@@ -86,13 +86,13 @@ object JobAPIService {
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
       val expiryTimeInSeconds = expiryTime / 1000
-      if (listObjs.length > 0) {
+      if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
           storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt))
         }
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
       } else {
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> Array(), "expiresAt" -> Long.box(0l)))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> List(), "expiresAt" -> Long.box(0l)))
       }
     } else {
       APILogger.log("Request Validation FAILED")
@@ -106,7 +106,7 @@ object JobAPIService {
     val requestId = _getRequestId(body.request.filter.get, outputFormat, datasetId, body.params.get.client_key.get)
     val job = CassandraUtil.getJobRequest(requestId, body.params.get.client_key.get)
     val usrReq = body.request
-    val useFilter = usrReq.filter.getOrElse(Filter(None, None, None, None, None, None, None, None, None, Option(channel)))
+    val useFilter = usrReq.filter.get
     val filter = Filter(None, None, None, useFilter.tag, useFilter.tags, useFilter.start_date, useFilter.end_date, useFilter.events, useFilter.app_id, Option(channel))
     val request = Request(Option(filter), usrReq.summaries, usrReq.trend, usrReq.context, usrReq.query, usrReq.filters, usrReq.config, usrReq.limit, Option(outputFormat), Option(datasetId))
 
@@ -137,7 +137,7 @@ object JobAPIService {
       } else if (filter.get.start_date.isEmpty || filter.get.end_date.isEmpty || params.get.client_key.isEmpty) {
         val message = if (params.get.client_key.isEmpty) "client_key is empty" else "start date or end date is empty"
         Map("status" -> "false", "message" -> message)
-      } else if (filter.get.tags.isEmpty || 0 == filter.get.tags.getOrElse(Array()).length) {
+      } else if (filter.get.tags.isEmpty || 0 == filter.get.tags.get.length) {
         Map("status" -> "false", "message" -> "tags are empty")
       } else if (!datasetList.contains(body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default")))) {
         val message = "invalid dataset_id. It should be one of " + datasetList

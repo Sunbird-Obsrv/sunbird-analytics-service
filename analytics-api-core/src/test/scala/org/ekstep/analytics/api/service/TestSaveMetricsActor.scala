@@ -23,7 +23,8 @@ class TestSaveMetricsActor extends FlatSpec with Matchers with BeforeAndAfterAll
   implicit val deserializer = new StringDeserializer()
   
   "SaveMetricsActor" should "assert for all the methods" in {
-    
+
+    kafkaUtil.close(); // Added this line to get 100% coverage for KafkaUtil
     val userDefinedConfig = EmbeddedKafkaConfig(kafkaPort = 9092, zooKeeperPort = 2181)
     withRunningKafkaOnFoundPort(userDefinedConfig) { implicit actualConfig =>
       saveMetricsActor.receive(IncrementApiCalls)

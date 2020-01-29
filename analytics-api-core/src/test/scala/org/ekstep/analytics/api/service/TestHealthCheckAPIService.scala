@@ -10,6 +10,7 @@ class TestHealthCheckAPIService extends BaseSpec {
 
     private implicit val system: ActorSystem = ActorSystem("health-check-test-actor-system", config)
     val redisUtil = mock[RedisUtil]
+    val healthCheckService = new HealthCheckAPIService();
 
     override def beforeAll() {
         super.beforeAll();
@@ -21,7 +22,7 @@ class TestHealthCheckAPIService extends BaseSpec {
 
     
     "HealthCheckAPIService" should "return health statusof APIs" in {
-        val response = HealthCheckAPIService.getHealthStatus()
+        val response = healthCheckService.getHealthStatus()
         val resp = JSONUtils.deserialize[Response](response)
         
         resp.id should be ("ekstep.analytics-api.health");

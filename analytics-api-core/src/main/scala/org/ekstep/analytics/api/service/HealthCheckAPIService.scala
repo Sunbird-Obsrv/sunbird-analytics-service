@@ -1,5 +1,6 @@
 package org.ekstep.analytics.api.service
 
+import javax.inject.Singleton
 import org.ekstep.analytics.api.util.CommonUtil
 import org.ekstep.analytics.api.util.CassandraUtil
 import org.ekstep.analytics.api.util.ElasticsearchService
@@ -10,7 +11,8 @@ import org.ekstep.analytics.api.util.RedisUtil
 case class ServiceHealthReport(name: String, healthy: Boolean, message: Option[String] = None)
 case class GetHealthStatus()
 
-object HealthCheckAPIService {
+@Singleton
+class HealthCheckAPIService {
 
     lazy val redisUtil = new RedisUtil();
   

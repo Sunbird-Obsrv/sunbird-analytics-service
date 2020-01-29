@@ -24,9 +24,10 @@ class DeviceController @Inject()(
                                 ) extends BaseController(cc, configuration) {
 
   implicit val ec: ExecutionContext = system.dispatchers.lookup("device-register-controller-dispatcher")
-  lazy val isExperimentEnabled: Boolean = configuration.getOptional[Boolean]("deviceRegisterAPI.experiment.enable").getOrElse(false)
 
   def registerDevice(deviceId: String) = Action.async { request: Request[AnyContent] =>
+
+    val isExperimentEnabled: Boolean = configuration.getOptional[Boolean]("deviceRegisterAPI.experiment.enable").getOrElse(false)
     val body: JsValue = request.body.asJson.get
     // The X-Forwarded-For header from Azure is in the format '61.12.65.222:33740, 61.12.65.222'
     val ip = request.headers.get("X-Forwarded-For").map {
@@ -118,7 +119,7 @@ class DeviceController @Inject()(
     }
   }
 
-  def getDeviceProfile(deviceId: String) = Action.async { implicit request =>
+  def getDeviceProfile(deviceId: String) = Action.async { implicit request: Request[AnyContent] =>
 
     // The X-Forwarded-For header from Azure is in the format '61.12.65.222:33740, 61.12.65.222'
     val ip = request.headers.get("X-Forwarded-For").map {

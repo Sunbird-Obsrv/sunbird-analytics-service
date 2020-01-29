@@ -24,6 +24,7 @@ class KafkaUtil {
   }
   
   def close() {
-    producer.close();
+    if(null != producer)
+      producer.close();
   }
 }

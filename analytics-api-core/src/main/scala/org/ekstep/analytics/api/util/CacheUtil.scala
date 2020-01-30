@@ -33,13 +33,8 @@ class CacheUtil @Inject()(postgresDB: PostgresDBUtil) {
 
   implicit val className = "org.ekstep.analytics.api.util.CacheUtil"
 
-  private var contentListMap: Map[String, Map[String, AnyRef]] = Map();
-  private var recommendListMap: Map[String, Map[String, AnyRef]] = Map();
-  private var languageMap: Map[String, String] = Map();
   private var cacheTimestamp: Long = 0L;
   private val consumerChannelTable: Table[String, String, Integer] = HashBasedTable.create();
-
-  def initCache()(implicit config: Config) {}
 
   def initConsumerChannelCache()(implicit config: Config) {
 
@@ -108,18 +103,7 @@ class CacheUtil @Inject()(postgresDB: PostgresDBUtil) {
       consumerChannelTable
     }
   }
-
-  def validateCache()(implicit config: Config) {
-
-    val timeAtStartOfDay = DateTime.now(DateTimeZone.UTC).withTimeAtStartOfDay().getMillis;
-    if (cacheTimestamp < timeAtStartOfDay) {
-      println("cacheTimestamp:" + cacheTimestamp, "timeAtStartOfDay:" + timeAtStartOfDay, " ### Resetting content cache...### ");
-      if (!contentListMap.isEmpty) contentListMap.empty;
-      if (!recommendListMap.isEmpty) recommendListMap.empty;
-      if (!languageMap.isEmpty) languageMap.empty;
-      initCache();
-    }
-  }
+  
 }
 
 object IPLocationCache {

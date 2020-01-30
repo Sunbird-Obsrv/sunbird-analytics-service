@@ -3,7 +3,7 @@ package org.ekstep.analytics.api.service
 import akka.actor.Actor
 import com.typesafe.config.Config
 import org.ekstep.analytics.api._
-import org.ekstep.analytics.api.util.{CommonUtil, DBUtil}
+import org.ekstep.analytics.api.util.{CommonUtil, CassandraUtil}
 import org.ekstep.analytics.framework.ExperimentStatus
 import org.ekstep.analytics.framework.util.JSONUtils
 import org.joda.time.DateTime
@@ -29,7 +29,7 @@ object ExperimentAPIService {
 
    private def upsertRequest(body: ExperimentRequestBody)(implicit config: Config): Map[String, AnyRef] = {
      val expReq = body.request
-     val experiment = DBUtil.getExperiementDefinition(expReq.expId)
+     val experiment = CassandraUtil.getExperimentDefinition(expReq.expId)
      val result = experiment.map { exp => {
        if (ExperimentStatus.FAILED.toString.equalsIgnoreCase(exp.status.get)) {
          val experimentRequest = saveExperimentDefinition(expReq)
@@ -46,7 +46,7 @@ object ExperimentAPIService {
    }
 
    def getExperimentDefinition(requestId: String)(implicit config: Config): Response = {
-     val experiment = DBUtil.getExperiementDefinition(requestId)
+     val experiment = CassandraUtil.getExperimentDefinition(requestId)
 
      val expStatus = experiment.map {
        exp => {
@@ -67,13 +67,13 @@ object ExperimentAPIService {
        request.createdBy, "Experiment_CREATE_API", submittedDate, submittedDate, JSONUtils.serialize(request.criteria),
        JSONUtils.serialize(request.data), Some(status), Some(statusMsg), None)
 
-     DBUtil.saveExperimentDefinition(Array(expRequest))
+     CassandraUtil.saveExperimentDefinition(Array(expRequest))
      expRequest
    }
 
    private def createExperimentResponse(expRequest: ExperimentDefinition): ExperimentResponse = {
      val stats = expRequest.stats.orNull
-     val processed = List(ExperimentStatus.ACTIVE.toString, ExperimentStatus.FAILED.toString).contains(expRequest.status.get)
+     val processed = List(ExperimentStatus.ACTIVE.toString, ExperimentStatus.FAILED.toString).contains(expRequest.status.get.toUpperCase())
      val statsOutput = if (processed && null != stats) {
        stats
      } else Map[String, Long]()
@@ -118,16 +118,17 @@ object ExperimentAPIService {
            errMap("data.endDate") = "Experiment End_Date should not be empty"
          }
          else if (CommonUtil.getPeriod(endDate) < CommonUtil.getPeriod(CommonUtil.getToday()))
-           errMap("data.startDate") = "End_Date should be greater than today's date."
-
-         if (startDate.isEmpty) {
-           errMap("data.endDate") = "Experiment Start_Date should not be empty"
+           errMap("data.endDate") = "End_Date should be greater than today's date."
+         else if (startDate.isEmpty) {
+           errMap("data.startDate") = "Experiment Start_Date should not be empty"
          }
          else if (CommonUtil.getPeriod(startDate) < CommonUtil.getPeriod(CommonUtil.getToday()))
-           errMap("data.endDate") = "Start_Date should be greater than or equal to today's date.."
-         val days = CommonUtil.getDaysBetween(startDate, endDate)
-         if (!startDate.isEmpty && !endDate.isEmpty && 0 > days)
-           errMap("data.StartDate") = "Date range should not be -ve. Please check your start_date & end_date"
+           errMap("data.startDate") = "Start_Date should be greater than or equal to today's date.."
+         else {
+           val days = CommonUtil.getDaysBetween(startDate, endDate)
+           if (!startDate.isEmpty && !endDate.isEmpty && 0 > days)
+           errMap("data.startDate") = "Date range should not be -ve. Please check your start_date & end_date"
+         }
        }
      }
      if (errMap.nonEmpty) errMap += ("status" -> "failed") else errMap += ("status" -> "success")

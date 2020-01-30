@@ -15,40 +15,36 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.sunbird.cloud.storage.BaseStorageService
 
 import scala.collection.immutable.List
+import org.mockito.Mockito._
+import org.mockito.ArgumentMatchers
+import akka.actor.ActorSystem
+import akka.testkit.TestActorRef
+import akka.actor.ActorRef
+import org.ekstep.analytics.api.service.JobAPIService.ChannelData
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContextExecutor
+import akka.util.Timeout
+import org.ekstep.analytics.api.service.JobAPIService.DataRequestList
+import org.ekstep.analytics.api.service.JobAPIService.DataRequest
+import org.ekstep.analytics.api.service.JobAPIService.GetDataRequest
 
-class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll with MockFactory {
+class TestJobAPIService extends BaseSpec  {
+  
   implicit val mockFc = mock[FrameworkContext];
-  implicit val config = ConfigFactory.load()
+  private val mockStorageService = mock[BaseStorageService]
+  private implicit val system: ActorSystem = ActorSystem("test-actor-system", config)
+  val jobApiServiceActorRef = TestActorRef(new JobAPIService)
+  implicit val executionContext: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.global
+  implicit val timeout: Timeout = 20.seconds
 
   override def beforeAll() {
-    if (embeddedCassandraMode) {
-      System.setProperty("cassandra.unsafesystem", "true")
-      EmbeddedCassandraServerHelper.startEmbeddedCassandra(20000L)
-      val session = DBUtil.session
-      val dataLoader = new CQLDataLoader(session);
-      dataLoader.load(new FileCQLDataSet(AppConf.getConfig("cassandra.cql_path"), true, true));
-    }
+    super.beforeAll()
   }
 
   override def afterAll() {
-    if (embeddedCassandraMode) {
-      EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
-      EmbeddedCassandraServerHelper.stopEmbeddedCassandra()
-    }
+    super.afterAll();
   }
-
-  private def embeddedCassandraMode(): Boolean = {
-    val isEmbedded = AppConf.getConfig("cassandra.service.embedded.enable")
-    StringUtils.isNotBlank(isEmbedded) && StringUtils.equalsIgnoreCase("true", isEmbedded)
-  }
-
-  def loadFileData[T](file: String)(implicit mf: Manifest[T]): Array[T] = {
-    if (file == null) {
-      return null
-    }
-    scala.io.Source.fromFile(file).getLines().toList.map(line => JSONUtils.deserialize[T](line)).filter { x => x != null }.toArray
-  }
-
 
   "JobAPIService" should "return response for data request" in {
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "json", "filter":{"start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}"""
@@ -57,9 +53,9 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
   }
 
   "JobAPIService" should "return success response for data request with type as json without dataset_id, app_id & channel" in {
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "json", "filter":{"start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}"""
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "json", "filter":{"start_date":"2016-09-01","end_date":"2016-09-20"}}}"""
     val response = JobAPIService.dataRequest(request, "in.ekstep")
-    response.params.status should be("successful")
+    response.params.status should be("failed")
 
   }
 
@@ -100,22 +96,66 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
     response.params.status should be("failed")
   }
+  
+  it should "validate the request body" in {
+    var response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.responseCode should be ("CLIENT_ERROR")
+    response.params.errmsg should be ("params is empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv"}}""", "in.ekstep")
+    response.params.errmsg should be ("filter is empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "proto", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("invalid type. It should be one of [csv, json].")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("client_key is empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("start date or end date is empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20"}}}""", "in.ekstep")
+    response.params.errmsg should be ("tags are empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":[]}}}""", "in.ekstep")
+    response.params.errmsg should be ("tags are empty")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"dataset_id":"eks-consumption-ra","output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg.indexOf("invalid dataset_id. It should be one of") should be (0)
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"9999-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("end_date should be lesser than today's date..")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2017-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("Date range should not be -ve. Please check your start_date & end_date")
+    
+    response = JobAPIService.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "csv", "filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-10-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}""", "in.ekstep")
+    response.params.errmsg should be ("Date range should be < 30 days")
+    
+  }
 
   "JobAPIService" should "submit the failed request for retry" in {
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"filter":{"events":["OE_ASSESS"], "start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}"""
-    val response = JobAPIService.dataRequest(request, "in.ekstep")
+    var response = JobAPIService.dataRequest(request, "in.ekstep")
 
     val requestId = response.result.getOrElse(Map()).getOrElse("request_id", "").asInstanceOf[String]
     StringUtils.isNotEmpty(requestId) should be(true)
 
-    DBUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED' WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
-    val getResponse = JobAPIService.getDataRequest("dev-portal", requestId)
-    val failStatus = getResponse.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
-    StringUtils.isNotEmpty(failStatus) should be(true)
-    failStatus should be("FAILED")
-    val response2 = JobAPIService.dataRequest(request, "in.ekstep")
-    val status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    CassandraUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED' WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
+    response = JobAPIService.getDataRequest("dev-portal", requestId)
+    var status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    StringUtils.isNotEmpty(status) should be(true)
+    status should be("FAILED")
+    
+    response = JobAPIService.dataRequest(request, "in.ekstep")
+    status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
     status should be("SUBMITTED")
+    
+    CassandraUtil.session.execute("UPDATE " + AppConf.getConfig("application.env") + "_platform_db.job_request SET status='FAILED', iteration = 3 WHERE client_key='dev-portal' AND request_id='" + requestId + "'")
+    response = JobAPIService.dataRequest(request, "in.ekstep")
+    status = response.result.getOrElse(Map()).getOrElse("status", "").asInstanceOf[String]
+    StringUtils.isNotEmpty(status) should be(true)
+    status should be("FAILED")
   }
 
   "JobAPIService" should "not submit the permanently failed/max attempts reached request while doing retry" in {
@@ -128,7 +168,7 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
   it should "return the list of jobs in descending order" in {
 
-    DBUtil.cluster.connect("local_platform_db").execute("DELETE FROM local_platform_db.job_request WHERE client_key='partner1'")
+    CassandraUtil.cluster.connect("local_platform_db").execute("DELETE FROM local_platform_db.job_request WHERE client_key='partner1'")
     val request_data1 = """{"filter":{"start_date":"2016-11-19","end_date":"2016-11-20","tags":["becb887fe82f24c644482eb30041da6d88bd8150"]}}"""
     val request_data2 = """{"filter":{"start_date":"2016-11-19","end_date":"2016-11-20","tags":["test-tag"],"events":["OE_ASSESS"]}}"""
 
@@ -136,9 +176,9 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
       JobRequest(Option("partner1"), Option("1234"), None, Option("SUBMITTED"), Option(request_data1),
         Option(1), Option(DateTime.now()), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None),
       JobRequest(Option("partner1"), Option("273645"), Option("test-job-id"), Option("COMPLETED"), Option(request_data2),
-        Option(1), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), Option("https://test-location"), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), None, None, None, None, None, Option(123234), Option(532), Option(12343453L), None, None, None, None, None))
+        Option(1), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), Option("https://test-location"), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), Option(DateTime.parse("2017-01-08", CommonUtil.dateFormat)), None, None, None, None, Option(123234), Option(532), Option(12343453L), None, None, None, None, None))
 
-    DBUtil.saveJobRequest(requests)
+    CassandraUtil.saveJobRequest(requests)
 
     val res = JobAPIService.getDataRequestList("partner1", 10)
     val resultMap = res.result.get
@@ -219,17 +259,58 @@ class TestJobAPIService extends FlatSpec with Matchers with BeforeAndAfterAll wi
     resObj.responseCode should be("OK")
   }
 
-  it should "Return the Success API Response" in {
-    val mockStorageService = mock[BaseStorageService]
-    (mockFc.getStorageService(_: String)).expects(*).returns(mockStorageService).anyNumberOfTimes();
-    (mockStorageService.upload _).expects(*, *, *, *, *, *, *).returns("").anyNumberOfTimes();
-    (mockStorageService.getSignedURL _).expects(*, *, *, *).returns("").anyNumberOfTimes();
-    (mockStorageService.searchObjectkeys _).expects(*, *, *, *, *, *).returns(List("")).anyNumberOfTimes();
-    (mockStorageService.closeContext _).expects().returns().anyNumberOfTimes()
+  it should "get the channel data for raw data" in {
+    
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+    doNothing().when(mockStorageService).closeContext()
+    
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", None)
+    resObj.responseCode should be("OK")
+    val res = resObj.result.getOrElse(Map())
+    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls.size should be (0)
+  }
+  
+  it should "get the channel data for summary data" in {
+    
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
+    doNothing().when(mockStorageService).closeContext()
+    
     val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", Option("device-summary"))
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
-    println("res" + res)
-    res.contains("telemetryURLs") should be(true)
+    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls.size should be (1)
+    urls.head should be ("https://sunbird.org/test/signed")
+    
+  }
+  
+  it should "test all exception branches" in {
+    import akka.pattern.ask
+    val toDate = new LocalDate().toString()
+    val fromDate = new LocalDate().minusDays(11).toString()
+    var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, config, None)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+    result.params.errmsg should be("Date range should be < 10 days")
+    
+    result = Await.result((jobApiServiceActorRef ? DataRequestList("partner1", 10, config)).mapTo[Response], 20.seconds)
+    val resultMap = result.result.get
+    val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
+    jobRes.length should be(2)
+    
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"output_format": "json", "filter":{"start_date":"2016-09-01","end_date":"2016-09-20","tags":["6da8fa317798fd23e6d30cdb3b7aef10c7e7bef5"]}}}"""
+    result = Await.result((jobApiServiceActorRef ? DataRequest(request, "in.ekstep", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("OK")
+    
+    result = Await.result((jobApiServiceActorRef ? GetDataRequest("dev-portal", "14621312DB7F8ED99BA1B16D8B430FAC", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("OK")
   }
 }

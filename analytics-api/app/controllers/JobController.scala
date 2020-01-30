@@ -1,9 +1,9 @@
 package controllers
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.routing.FromConfig
-import javax.inject.Inject
+import javax.inject.{Inject, Named}
 import org.ekstep.analytics.api.service.JobAPIService
 import org.ekstep.analytics.api.service.JobAPIService._
 import org.ekstep.analytics.api.util.{APILogger, CacheUtil, CommonUtil, JSONUtils}
@@ -19,20 +19,18 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 
 class JobController @Inject() (
+                                @Named("job-service-actor") jobAPIActor: ActorRef,
                                 system: ActorSystem,
                                 configuration: Configuration,
                                 cc: ControllerComponents,
                                 cacheUtil: CacheUtil
                               )(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
 
-  val jobAPIActor = system.actorOf(Props[JobAPIService].withRouter(FromConfig()), name = "jobApiActor")
-
   def dataRequest() = Action.async { request: Request[AnyContent] =>
     val body: String = Json.stringify(request.body.asJson.get)
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    println(s"is authenticated! $checkFlag")
     if (checkFlag) {
       val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
       res.map { x =>
@@ -112,8 +110,6 @@ class JobController @Inject() (
             cacheUtil.initConsumerChannelCache()
           case "DeviceLocation" =>
             cacheUtil.initDeviceLocationCache()
-          case _ =>
-            cacheUtil.initCache()
       }
       result("OK", JSONUtils.serialize(CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("msg" -> s"$cacheType cache refreshed successfully"))))
   }

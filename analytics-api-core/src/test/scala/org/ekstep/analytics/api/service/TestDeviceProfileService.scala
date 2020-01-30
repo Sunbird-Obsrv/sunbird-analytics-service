@@ -16,6 +16,9 @@ import scala.collection.JavaConverters._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 import com.typesafe.config.ConfigFactory
+import org.ekstep.analytics.api.util.KafkaUtil
+import redis.clients.jedis.exceptions.JedisConnectionException
+import org.ekstep.analytics.api.util.APILogger
 
 class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
 
@@ -26,7 +29,8 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   private val redisUtil = new RedisUtil();
   val redisIndex: Int = 2
   implicit val executor = scala.concurrent.ExecutionContext.global
-  val saveMetricsActor = TestActorRef(new SaveMetricsActor)
+  val kafkaUtil = new KafkaUtil()
+  val saveMetricsActor = TestActorRef(new SaveMetricsActor(kafkaUtil))
   val metricsActorProbe = TestProbe()
   when(configMock.getInt("redis.deviceIndex")).thenReturn(2)
   when(configMock.getInt("redis.port")).thenReturn(6379)
@@ -53,10 +57,12 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   override def afterAll() {
     super.afterAll()
     redisServer.stop();
+    deviceProfileServiceActorRef.restart(new Exception() {})
+    deviceProfileServiceActorRef.stop();
   }
 
 
-  "Resolve location for get device profile" should "return location details given an IP address" in {
+  "DeviceProfileService" should "return location details given an IP address" in {
     when(deviceProfileServiceMock.resolveLocation(ipAddress = "106.51.74.185"))
       .thenReturn(DeviceStateDistrict("Karnataka", "BANGALORE"))
     val deviceLocation = deviceProfileServiceMock.resolveLocation("106.51.74.185")
@@ -64,7 +70,7 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
     deviceLocation.districtCustom should be("BANGALORE")
   }
 
-  "Resolve location for get device profile" should "return empty location if the IP address is not found" in {
+  it should "return empty location if the IP address is not found" in {
     when(deviceProfileServiceMock.resolveLocation(ipAddress = "106.51.74.185"))
       .thenReturn(new DeviceStateDistrict())
     val deviceLocation = deviceProfileServiceMock.resolveLocation("106.51.74.185")
@@ -73,7 +79,7 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   }
 
 
-  "Device profileService" should "get the device profile data" in {
+  it should "get the device profile data" in {
     
     IPLocationCache.setGeoLocMap(Map(1234 -> DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "Karnataka", "29", "Bangalore")))
     IPLocationCache.setRangeTree(RangedSeq((1781746350l, 1781746370l) -> 1234)(_._1, Ordering.Long))
@@ -82,9 +88,12 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
     deviceProfile.get.ipLocation.get.district should be ("Bangalore")
     deviceProfile.get.userDeclaredLocation.get.district should be ("Tumkur")
     deviceProfile.get.userDeclaredLocation.get.state should be ("Karnataka")
+    
+    val deviceProfile2 = deviceProfileServiceActorRef.underlyingActor.getDeviceProfile(DeviceProfileRequest("device-001", ""))
+    deviceProfile2 should be (None)
   }
 
-  "Device profileService" should "When state is not defined" in {
+  it should "When state is not defined" in {
 
     IPLocationCache.setGeoLocMap(Map(1234 -> DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "", "29", "Bangalore")))
     IPLocationCache.setRangeTree(RangedSeq((1781746350l, 1781746370l) -> 1234)(_._1, Ordering.Long))
@@ -96,10 +105,27 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   }
 
 
-  "Device profileService" should "catch the exception" in {
+  it should "catch the exception" in {
     intercept[Exception] {
       when(configMock.getBoolean("device.api.enable.debug.log")).thenThrow(new Exception("Error"))
       deviceProfileServiceActorRef.tell(DeviceProfileRequest("device-001", "106.51.74.185"), ActorRef.noSender)
+    }
+  }
+  
+  it should "check whether all exception branches are invoked" in {
+    
+    APILogger.init("DeviceProfileService");
+    APILogger.logMetrics(Option(Map()), "DeviceProfileService")("TestDeviceProfileService");
+    noException must be thrownBy {
+      deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-0001", "206.51.74.185"))
+    }
+    intercept[Exception] {
+      deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-001", "xyz"))
+    }
+    intercept[JedisConnectionException] {
+      redisServer.stop();
+      deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-001", "106.51.74.185"))
+      redisServer.start();
     }
   }
 

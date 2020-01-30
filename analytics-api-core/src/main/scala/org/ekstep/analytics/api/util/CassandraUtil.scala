@@ -4,21 +4,19 @@ import akka.actor.Actor
 import com.datastax.driver.core._
 import com.datastax.driver.core.querybuilder.{QueryBuilder => QB}
 import org.ekstep.analytics.api.{Constants, ExperimentDefinition, JobRequest}
-import org.ekstep.analytics.framework.conf.AppConf
 import org.ekstep.analytics.framework.util.JobLogger
 import org.joda.time.DateTime
 
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 
-object DBUtil {
+object CassandraUtil {
 
     case class GetJobRequest(requestId: String, clientId: String)
     case class SaveJobRequest(jobRequest: Array[JobRequest])
 
     implicit val className = "DBUtil"
-    val embeddedCassandra = AppConf.getConfig("cassandra.service.embedded.enable").toBoolean
-    val host = AppConf.getConfig("spark.cassandra.connection.host")
-    val port = if (embeddedCassandra) AppConf.getConfig("cassandra.service.embedded.connection.port").toInt else 9042
+    val host = AppConfig.getString("spark.cassandra.connection.host")
+    val port = AppConfig.getInt("spark.cassandra.connection.port")
     val cluster = {
         Cluster.builder()
             .addContactPoint(host)
@@ -26,7 +24,7 @@ object DBUtil {
             .withoutJMXReporting()
             .build()
     }
-    val session = cluster.connect()
+    var session = cluster.connect()
 
     def getJobRequest(requestId: String, clientKey: String): JobRequest = {
         val query = QB.select().from(Constants.PLATFORM_DB, Constants.JOB_REQUEST).allowFiltering().where(QB.eq("request_id", requestId)).and(QB.eq("client_key", clientKey))
@@ -51,7 +49,7 @@ object DBUtil {
     }
 
     //Experiment
-    def getExperiementDefinition(expId: String): Option[ExperimentDefinition] = {
+    def getExperimentDefinition(expId: String): Option[ExperimentDefinition] = {
         val query = QB.select().from(Constants.PLATFORM_DB, Constants.EXPERIMENT_TABLE).allowFiltering()
           .where(QB.eq("exp_id", expId))
         val resultSet = session.execute(query)
@@ -60,13 +58,16 @@ object DBUtil {
     }
 
     def saveExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
+        import scala.collection.JavaConversions._
+        
         expRequests.map { expRequest =>
-            val query = QB.insertInto(Constants.PLATFORM_DB, Constants.EXPERIMENT_TABLE).value("exp_id", expRequest.expId)
+            val stats = scala.collection.JavaConversions.mapAsJavaMap(expRequest.stats.getOrElse(Map[String, Long]()));
+            var query = QB.insertInto(Constants.PLATFORM_DB, Constants.EXPERIMENT_TABLE).value("exp_id", expRequest.expId)
               .value("exp_name", expRequest.expName).value("status", expRequest.status.get).value("exp_description", expRequest.expDescription)
               .value("exp_data", expRequest.data).value("updated_on", setDateColumn(expRequest.udpatedOn).orNull)
               .value("created_by", expRequest.createdBy).value("updated_by", expRequest.updatedBy)
               .value("created_on", setDateColumn(expRequest.createdOn).orNull).value("status_message", expRequest.status_msg.get)
-              .value("criteria", expRequest.criteria)
+              .value("criteria", expRequest.criteria).value("stats", stats)
 
             session.execute(query)
         }
@@ -109,7 +110,7 @@ object DBUtil {
 
     def checkCassandraConnection(): Boolean = {
         try {
-            if (null != session) true else false
+            if (null != session && !session.isClosed()) true else false
         } catch {
             // $COVERAGE-OFF$ Disabling scoverage as the below code cannot be covered
             // TODO: Need to get confirmation from amit.
@@ -117,14 +118,5 @@ object DBUtil {
                 false
             // $COVERAGE-ON$    
         }
-    }
-}
-
-class DBUtil extends Actor {
-    import DBUtil._;
-
-    def receive = {
-        case GetJobRequest(requestId: String, clientId: String) => getJobRequest(requestId, clientId);
-        case SaveJobRequest(jobRequest: Array[JobRequest])      => saveJobRequest(jobRequest);
     }
 }

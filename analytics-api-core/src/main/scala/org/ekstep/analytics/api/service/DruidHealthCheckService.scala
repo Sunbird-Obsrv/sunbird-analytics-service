@@ -1,11 +1,12 @@
 package org.ekstep.analytics.api.service
 
 import akka.actor.Actor
+import javax.inject.Inject
 import org.ekstep.analytics.api.util.APILogger
 import org.ekstep.analytics.framework.conf.AppConf
 import org.ekstep.analytics.framework.util.HTTPClient
 
-class DruidHealthCheckService(restUtil: HTTPClient) extends Actor {
+class DruidHealthCheckService @Inject()(restUtil: HTTPClient) extends Actor {
 
   implicit val className = "org.ekstep.analytics.api.service.DruidHealthCheckService"
   val apiUrl = AppConf.getConfig("druid.coordinator.host")+AppConf.getConfig("druid.healthcheck.url")

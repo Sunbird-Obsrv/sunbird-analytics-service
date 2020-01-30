@@ -20,12 +20,9 @@ import scala.concurrent.{ExecutionContext, Future}
  * @author mahesh
  */
 
-class Application @Inject() (cc: ControllerComponents, futures: Futures, system: ActorSystem, configuration: Configuration, cacheUtil: CacheUtil)(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
+class Application @Inject() (@Named("client-log-actor") clientLogAPIActor: ActorRef, @Named("druid-health-actor") druidHealthActor: ActorRef, healthCheckService: HealthCheckAPIService, cc: ControllerComponents, system: ActorSystem, configuration: Configuration)(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
 
 	implicit override val className: String = "controllers.Application"
-	private val clientLogAPIActor = system.actorOf(Props[ClientLogsAPIService].withRouter(FromConfig()), name = "clientLogAPIActor")
-	private val druidHealthActor = system.actorOf(Props(new DruidHealthCheckService(RestUtil)), "druidHealthActor")
-	// private val locationCacheRefreshActor: ActorRef = system.actorOf(Props(new CacheRefreshActor(cacheUtil)), "cacheRefreshActor")
 	val logger: Logger = Logger(this.getClass)
 
 	def getDruidHealthStatus() = Action.async { request: Request[AnyContent] =>
@@ -36,7 +33,7 @@ class Application @Inject() (cc: ControllerComponents, futures: Futures, system:
 	}
 
   def checkAPIhealth() = Action.async { request: Request[AnyContent] =>
-    val result = HealthCheckAPIService.getHealthStatus();
+    val result = healthCheckService.getHealthStatus();
     Future {
       Ok(result).withHeaders(CONTENT_TYPE -> "application/json");      
     }

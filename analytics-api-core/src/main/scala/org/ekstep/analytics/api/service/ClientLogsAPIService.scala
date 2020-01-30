@@ -8,11 +8,11 @@ case class Dspec (os: String = "", make: String = "", mem: Int = 0, idisk: Strin
 case class Uaspec (agent: String = "", ver: String = "", system: String = "", platform: String = "", raw: String = "")
 case class ValidatorMessage(status: Boolean, msg: String)
 
-class validator() {
+class Validator() {
   def isNullOrEmpty(str: String): Boolean = if (str != null && ! str.isEmpty) false else true
 }
 
-case class Context (did: String, dspec: Option[Dspec], extras: Map[String, String]) extends validator {
+case class Context (did: String, dspec: Option[Dspec], extras: Map[String, String]) extends Validator {
   def validate: ValidatorMessage = {
     if (isNullOrEmpty(did)) {
       ValidatorMessage(false, "property: context.did is null or empty!")
@@ -22,7 +22,7 @@ case class Context (did: String, dspec: Option[Dspec], extras: Map[String, Strin
   }
 }
 
-case class Pdata (id: String, ver: String, pid: String) extends validator {
+case class Pdata (id: String, ver: String, pid: String) extends Validator {
   def validate: ValidatorMessage = {
     if (isNullOrEmpty(id)) {
       ValidatorMessage(false, "property: pdata.id is null or empty!")
@@ -36,7 +36,7 @@ case class Pdata (id: String, ver: String, pid: String) extends validator {
   }
 }
 
-case class Log(id: String, ts: Long, log: String, appver: String, pageid: String) extends validator {
+case class Log(id: String, ts: Long, log: String, appver: String, pageid: String) extends Validator {
   def validate: ValidatorMessage = {
     if (isNullOrEmpty(log)) {
       ValidatorMessage(false, "property: logs*.log is missing!")
@@ -48,7 +48,7 @@ case class Log(id: String, ts: Long, log: String, appver: String, pageid: String
   }
 }
 
-case class ClientRequestBody (context: Context, pdata: Pdata, logs: List[Log]) extends validator {
+case class ClientRequestBody (context: Context, pdata: Pdata, logs: List[Log]) extends Validator {
   def validate: ValidatorMessage = {
     if (context == null) {
       ValidatorMessage(false, "property: context is missing!")
@@ -63,7 +63,7 @@ case class ClientRequestBody (context: Context, pdata: Pdata, logs: List[Log]) e
 }
 
 
-case class ClientLogRequest(request: Option[ClientRequestBody]) extends validator {
+case class ClientLogRequest(request: Option[ClientRequestBody]) extends Validator {
   def validate: ValidatorMessage = {
     request match {
       case None => ValidatorMessage(false, "property: request is missing!")
@@ -87,10 +87,8 @@ class ClientLogsAPIService extends Actor {
   private val logger = LogManager.getLogger("crash-logger")
   override def receive: Receive = {
     case ClientLogRequest(request: Option[ClientRequestBody]) => {
-      request match {
-        case Some(log) => {
-          logger.info(JSONUtils.serialize(log))
-        }
+      if(request.nonEmpty) {
+        logger.info(JSONUtils.serialize(request.get))
       }
     }
   }

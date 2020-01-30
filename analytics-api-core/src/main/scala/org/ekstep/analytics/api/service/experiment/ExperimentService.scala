@@ -10,6 +10,7 @@ import redis.clients.jedis.Jedis
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
+import org.ekstep.analytics.api.util.AppConfig
 
 case class ExperimentRequest(deviceId: Option[String], userId: Option[String], url: Option[String], producer: Option[String])
 case class ExperimentData(id: String, name: String, startDate: String, endDate: String, key: String, expType: String, userId: String, deviceId: String, userIdMod: Long, deviceIdMod: Long)
@@ -18,10 +19,8 @@ class ExperimentService @Inject()(redisUtil: RedisUtil, elasticsearchService :El
 
   implicit val ec: ExecutionContext = context.system.dispatchers.lookup("experiment-actor")
   implicit val className: String = "org.ekstep.analytics.api.service.experiment.ExperimentService"
-  val config: Config = ConfigFactory.load()
-  val databaseIndex: Int = config.getInt("redis.experimentIndex")
-  val emptyValueExpirySeconds: Int = config.getInt("experimentService.redisEmptyValueExpirySeconds")
-  implicit val jedisConnection: Jedis = redisUtil.getConnection(databaseIndex)
+  val databaseIndex: Int = AppConfig.getInt("redis.experimentIndex")
+  val emptyValueExpirySeconds: Int = AppConfig.getInt("experimentService.redisEmptyValueExpirySeconds")
   val NoExperimentAssigned = "NO_EXPERIMENT_ASSIGNED"
 
   def receive: Receive = {
@@ -29,37 +28,37 @@ class ExperimentService @Inject()(redisUtil: RedisUtil, elasticsearchService :El
       val senderActor = sender()
       val result = getExperiment(deviceId, userId, url, producer)
       result.pipeTo(senderActor)
-      /*
-      result.onComplete {
-        case Success(value) => reply ! value
-        case Failure(error) => reply ! None
-      }
-      */
     }
   }
 
   def getExperiment(deviceId: Option[String], userId: Option[String], url: Option[String], producer: Option[String]): Future[Option[ExperimentData]] = {
     val key = keyGen(deviceId, userId, url, producer)
-    val experimentCachedData = redisUtil.getKey(key)
-
-    experimentCachedData.map {
-      expData =>
-        if (NoExperimentAssigned.equals(expData)) {
-          APILogger.log("", Option(Map("comments" -> s"No experiment assigned for key $key")), "ExperimentService")
-          Future(None)
-        } else
-          Future(resolveExperiment(JSONUtils.deserialize[ExperimentData](expData)))
-    }.getOrElse {
-      val data = searchExperiment(deviceId, userId, url, producer)
-      data.map { result =>
-        result.map { res =>
-          redisUtil.addCache(key, JSONUtils.serialize(res))
-          resolveExperiment(res)
-        }.getOrElse {
-          redisUtil.addCache(key, NoExperimentAssigned, emptyValueExpirySeconds)
-          None
+    val jedisConnection: Jedis = redisUtil.getConnection(databaseIndex)
+    
+    try {
+      val experimentCachedData = Option(jedisConnection.get(key))
+  
+      experimentCachedData.map {
+        expData =>
+          if (NoExperimentAssigned.equals(expData)) {
+            APILogger.log("", Option(Map("comments" -> s"No experiment assigned for key $key")), "ExperimentService")
+            Future(None)
+          } else
+            Future(resolveExperiment(JSONUtils.deserialize[ExperimentData](expData)))
+      }.getOrElse {
+        val data = searchExperiment(deviceId, userId, url, producer)
+        data.map { result =>
+          result.map { res =>
+            jedisConnection.set(key, JSONUtils.serialize(res))
+            resolveExperiment(res)
+          }.getOrElse {
+            jedisConnection.setex(key, emptyValueExpirySeconds, NoExperimentAssigned)
+            None
+          }
         }
       }
+    } finally {
+      jedisConnection.close();
     }
 
   }
@@ -92,10 +91,6 @@ class ExperimentService @Inject()(redisUtil: RedisUtil, elasticsearchService :El
     if (userId.isDefined) value += ("userId" -> userId.get)
     if (url.isDefined) value += ("url" -> url.get)
     value.toMap
-  }
-
-  override def postStop(): Unit = {
-    jedisConnection.close()
   }
 
 }

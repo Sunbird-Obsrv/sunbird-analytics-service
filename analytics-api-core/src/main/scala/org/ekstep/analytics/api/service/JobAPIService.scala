@@ -6,7 +6,7 @@ import java.util.Calendar
 import akka.actor.Actor
 import com.typesafe.config.Config
 import org.apache.commons.lang3.StringUtils
-import org.ekstep.analytics.api.util.{APILogger, CommonUtil, DBUtil}
+import org.ekstep.analytics.api.util.{APILogger, CommonUtil, CassandraUtil}
 import org.ekstep.analytics.api.{APIIds, JobStats, OutputFormat, _}
 import org.ekstep.analytics.framework.util.JSONUtils
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
@@ -22,7 +22,7 @@ import scala.util.Sorting
 
 // TODO: Need to refactor the entire Service.
 object JobAPIService {
-
+  
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
 
   case class DataRequest(request: String, channel: String, config: Config)
@@ -50,7 +50,7 @@ object JobAPIService {
   }
 
   def getDataRequest(clientKey: String, requestId: String)(implicit config: Config): Response = {
-    val job = DBUtil.getJobRequest(requestId, clientKey)
+    val job = CassandraUtil.getJobRequest(requestId, clientKey)
     if (null == job) {
       CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and client_key", ResponseCode.OK.toString)
     } else {
@@ -61,7 +61,7 @@ object JobAPIService {
 
   def getDataRequestList(clientKey: String, limit: Int)(implicit config: Config): Response = {
     val currDate = DateTime.now()
-    val jobRequests = DBUtil.getJobRequestList(clientKey)
+    val jobRequests = CassandraUtil.getJobRequestList(clientKey)
     val jobs = jobRequests.filter { f => f.dt_expiration.getOrElse(currDate).getMillis >= currDate.getMillis }
     val result = jobs.take(limit).map { x => _createJobResponse(x) }
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
@@ -86,13 +86,13 @@ object JobAPIService {
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
       val expiryTimeInSeconds = expiryTime / 1000
-      if (listObjs.length > 0) {
+      if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
           storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt))
         }
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
       } else {
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> Array(), "expiresAt" -> Long.box(0l)))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> List(), "expiresAt" -> Long.box(0l)))
       }
     } else {
       APILogger.log("Request Validation FAILED")
@@ -104,9 +104,9 @@ object JobAPIService {
     val outputFormat = body.request.output_format.getOrElse(config.getString("data_exhaust.output_format"))
     val datasetId = body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default"))
     val requestId = _getRequestId(body.request.filter.get, outputFormat, datasetId, body.params.get.client_key.get)
-    val job = DBUtil.getJobRequest(requestId, body.params.get.client_key.get)
+    val job = CassandraUtil.getJobRequest(requestId, body.params.get.client_key.get)
     val usrReq = body.request
-    val useFilter = usrReq.filter.getOrElse(Filter(None, None, None, None, None, None, None, None, None, Option(channel)))
+    val useFilter = usrReq.filter.get
     val filter = Filter(None, None, None, useFilter.tag, useFilter.tags, useFilter.start_date, useFilter.end_date, useFilter.events, useFilter.app_id, Option(channel))
     val request = Request(Option(filter), usrReq.summaries, usrReq.trend, usrReq.context, usrReq.query, usrReq.filters, usrReq.config, usrReq.limit, Option(outputFormat), Option(datasetId))
 
@@ -137,7 +137,7 @@ object JobAPIService {
       } else if (filter.get.start_date.isEmpty || filter.get.end_date.isEmpty || params.get.client_key.isEmpty) {
         val message = if (params.get.client_key.isEmpty) "client_key is empty" else "start date or end date is empty"
         Map("status" -> "false", "message" -> message)
-      } else if (filter.get.tags.nonEmpty && 0 == filter.get.tags.getOrElse(Array()).length) {
+      } else if (filter.get.tags.isEmpty || 0 == filter.get.tags.get.length) {
         Map("status" -> "false", "message" -> "tags are empty")
       } else if (!datasetList.contains(body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default")))) {
         val message = "invalid dataset_id. It should be one of " + datasetList
@@ -186,12 +186,12 @@ object JobAPIService {
     val status = JobStatus.SUBMITTED.toString()
     val jobSubmitted = DateTime.now()
     val jobRequest = JobRequest(Option(clientKey), Option(requestId), None, Option(status), Option(JSONUtils.serialize(request)), Option(iteration), Option(jobSubmitted), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Option("DATA_EXHAUST"))
-    DBUtil.saveJobRequest(Array(jobRequest))
+    CassandraUtil.saveJobRequest(Array(jobRequest))
     jobRequest
   }
 
   private def _getRequestId(filter: Filter, outputFormat: String, datasetId: String, clientKey: String): String = {
-    Sorting.quickSort(filter.tags.getOrElse(Array()))
+    Sorting.quickSort(filter.tags.get)
     Sorting.quickSort(filter.events.getOrElse(Array()))
     val key = Array(filter.start_date.get, filter.end_date.get, filter.tags.getOrElse(Array()).mkString, filter.events.getOrElse(Array()).mkString, filter.app_id.getOrElse(""), filter.channel.getOrElse(""), outputFormat, datasetId, clientKey).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString

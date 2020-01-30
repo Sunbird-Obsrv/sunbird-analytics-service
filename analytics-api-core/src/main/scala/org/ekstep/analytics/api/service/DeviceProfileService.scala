@@ -1,6 +1,6 @@
 package org.ekstep.analytics.api.service
 
-import akka.actor.{Actor, Props}
+import akka.actor.{ Actor, Props }
 import com.google.common.net.InetAddresses
 import com.google.common.primitives.UnsignedInts
 import com.typesafe.config.Config
@@ -10,19 +10,18 @@ import redis.clients.jedis.Jedis
 import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ExecutionContext, Future, blocking}
+import scala.concurrent.{ ExecutionContext, Future, blocking }
 import ExecutionContext.Implicits.global
 import akka.pattern.{ ask, pipe }
 import org.ekstep.analytics.framework.util.CommonUtil
 
 case class DeviceProfileRequest(did: String, headerIP: String)
 
-class DeviceProfileService @Inject()(
-                                      config: Config,
-                                      redisUtil: RedisUtil
-                                    ) extends Actor {
+class DeviceProfileService @Inject() (
+  config:    Config,
+  redisUtil: RedisUtil) extends Actor {
 
-  implicit val className: String ="DeviceProfileService"
+  implicit val className: String = "DeviceProfileService"
   val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
 
   override def preStart { println("starting DeviceProfileService") }
@@ -40,29 +39,20 @@ class DeviceProfileService @Inject()(
       try {
         val result = getDeviceProfile(deviceProfile)
         sender() ! result
-
       } catch {
-        case ex: JedisConnectionException =>
-          ex.printStackTrace()
-          val errorMessage = "Get DeviceProfileAPI failed due to " + ex.getMessage
-          APILogger.log("", Option(Map("type" -> "api_access",
-            "params" -> List(Map("status" -> 500, "method" -> "POST",
-              "rid" -> "getDeviceProfile", "title" -> "getDeviceProfile")), "data" -> errorMessage)),
-            "getDeviceProfile")
         case ex: Exception =>
           ex.printStackTrace()
           val errorMessage = "Get DeviceProfileAPI failed due to " + ex.getMessage
-          APILogger.log("", Option(Map("type" -> "api_access",
-            "params" -> List(Map("status" -> 500, "method" -> "POST",
-              "rid" -> "getDeviceProfile", "title" -> "getDeviceProfile")), "data" -> errorMessage)),
-            "getDeviceProfile")
+          APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
+            "rid" -> "getDeviceProfile", "title" -> "getDeviceProfile")), "data" -> errorMessage)), "getDeviceProfile")
+          throw ex;
       }
   }
 
   def getDeviceProfile(deviceProfileRequest: DeviceProfileRequest): Option[DeviceProfile] = {
 
     if (deviceProfileRequest.headerIP.nonEmpty) {
-      
+
       val ipLocationFromH2 = resolveLocation(deviceProfileRequest.headerIP)
       val did = deviceProfileRequest.did
 
@@ -76,10 +66,6 @@ class DeviceProfileService @Inject()(
       val jedisConnection: Jedis = redisUtil.getConnection(deviceDatabaseIndex)
       val deviceLocation = try {
         Option(jedisConnection.hgetAll(did).asScala.toMap)
-      } catch {
-        case ex: Exception =>
-          APILogger.log("", Option(Map("comments" -> s"Redis exception during did lookup: ${ex.getMessage}")), "DeviceProfileService")
-          None
       } finally {
         jedisConnection.close()
       }

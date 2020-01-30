@@ -9,9 +9,16 @@ import org.mockito.Mockito._
 import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
+import org.scalatest.BeforeAndAfterAll
+import org.scalatestplus.mockito.MockitoSugar
+import com.typesafe.config.ConfigFactory
 
 
-class TestDruidHealthCheckAPIService extends BaseSpec {
+class TestDruidHealthCheckAPIService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
+  
+  implicit val config = ConfigFactory.load()
   implicit val timeout: Timeout = 20 seconds
 
   override def beforeAll() {

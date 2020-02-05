@@ -1,10 +1,10 @@
 package org.ekstep.analytics.api.service
 
 import akka.actor.Actor
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import org.ekstep.analytics.api.util.APILogger
 import org.ekstep.analytics.framework.conf.AppConf
-import org.ekstep.analytics.framework.util.RestUtil
+import org.ekstep.analytics.framework.util.{HTTPClient, RestUtil}
 
 class DruidHealthCheckService @Inject()(restUtil: APIServiceRestUtil) extends Actor {
 
@@ -34,8 +34,9 @@ class DruidHealthCheckService @Inject()(restUtil: APIServiceRestUtil) extends Ac
   }
 }
 
+@Singleton
 class APIServiceRestUtil {
-  def get[T](apiURL: String)(implicit mf: Manifest[T]): T = {
-    RestUtil.get[T](apiURL)
+  def get[T](apiURL: String, restUtil: HTTPClient = RestUtil)(implicit mf: Manifest[T]): T = {
+    restUtil.get[T](apiURL)
   }
 }

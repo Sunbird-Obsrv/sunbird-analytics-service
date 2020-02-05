@@ -1,23 +1,20 @@
 package org.ekstep.analytics.api.service
 
 import akka.actor.ActorSystem
-import akka.testkit.TestActorRef
-import org.ekstep.analytics.api.BaseSpec
-import org.ekstep.analytics.framework.conf.AppConf
-import org.ekstep.analytics.framework.util.HTTPClient
-import org.mockito.Mockito._
 import akka.pattern.ask
+import akka.testkit.TestActorRef
 import akka.util.Timeout
-import scala.concurrent.duration._
-import org.scalatest.FlatSpec
-import org.scalatest.Matchers
-import org.scalatest.BeforeAndAfterAll
-import org.scalatestplus.mockito.MockitoSugar
 import com.typesafe.config.ConfigFactory
+import org.ekstep.analytics.framework.conf.AppConf
+import org.mockito.Mockito._
+import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatestplus.mockito.MockitoSugar
+
+import scala.concurrent.duration._
 
 
 class TestDruidHealthCheckAPIService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
-  
+
   implicit val config = ConfigFactory.load()
   implicit val timeout: Timeout = 20 seconds
 
@@ -31,7 +28,7 @@ class TestDruidHealthCheckAPIService extends FlatSpec with Matchers with BeforeA
 
   "DruidHealthCheckService" should "return health status of druid datasources" in {
 
-    val HTTPClientMock = mock[HTTPClient]
+    val HTTPClientMock = mock[APIServiceRestUtil]
     implicit val actorSystem = ActorSystem("testActorSystem", config)
     implicit val executor =  scala.concurrent.ExecutionContext.global
 

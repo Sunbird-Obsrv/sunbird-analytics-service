@@ -1,18 +1,14 @@
 package controllers
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern._
-import akka.routing.FromConfig
-import javax.inject.Inject
-import org.ekstep.analytics.api.service.{CacheRefreshActor, DruidHealthCheckService, _}
+import javax.inject.{Inject, _}
+import org.ekstep.analytics.api.service._
 import org.ekstep.analytics.api.util._
 import org.ekstep.analytics.api.{APIIds, ResponseCode}
-import org.ekstep.analytics.framework.util.RestUtil
-import play.api.libs.concurrent.Futures
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.{Configuration, Logger}
-import javax.inject._
 
 import scala.concurrent.{ExecutionContext, Future}
 

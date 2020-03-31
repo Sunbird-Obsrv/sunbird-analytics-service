@@ -115,6 +115,7 @@ object APIIds {
 	val CLIENT_LOG = "ekstep.analytics.client-log"
 	val EXPERIEMNT_CREATE_REQUEST = "ekstep.analytics.experiement.create";
 	val EXPERIEMNT_GET_REQUEST = "ekstep.analytics.experiement.get";
+	val REPORT_GET_REQUEST = "ekstep.analytics.report.get";
 }
 
 case class JobOutput(location: Option[String] = None, file_size: Option[Long] = None, dt_file_created: Option[String] = None, dt_first_event: Option[Long] = None, dt_last_event: Option[Long] = None, dt_expiration: Option[Long] = None);
@@ -140,4 +141,7 @@ case class ExperimentResponse(request: ExperimentCreateRequest, stats: Map[Strin
 
 case class ExperimentErrorResponse(expResponse: ExperimentResponse, err: String, errorMsg: Map[String, String])
 
+
+case class ReportResponse(reportId: String, reportDescription: String, createdBy: String, reportSchedule: String,
+						  config: Map[String,Any], createdOn: Long, updatedOn: Long, submittedOn: Long, status: String, status_msg: String)
 

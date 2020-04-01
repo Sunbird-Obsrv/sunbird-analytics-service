@@ -38,6 +38,6 @@ GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: 
 
 POST /report/jobs/submit controllers.ReportController.submitReport
 GET  /report/jobs/:reportId controllers.ReportController.getReport(reportId: String)
-GET  /report/jobs controllers.ReportController.getReportList
+POST  /report/jobs controllers.ReportController.getReportList
 DELETE /report/jobs/:reportId  controllers.ReportController.deleteReport(reportId: String)
 POST /report/jobs/:reportId controllers.ReportController.updateReport(reportId: String)

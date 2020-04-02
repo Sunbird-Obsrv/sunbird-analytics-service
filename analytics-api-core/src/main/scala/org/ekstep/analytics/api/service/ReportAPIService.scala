@@ -2,64 +2,134 @@ package org.ekstep.analytics.api.service
 
 import akka.actor.Actor
 import com.typesafe.config.Config
-import org.ekstep.analytics.api.util.{CommonUtil, JSONUtils}
+import javax.inject.Inject
 import org.ekstep.analytics.api._
+import org.ekstep.analytics.api.util.{CommonUtil, JSONUtils, PostgresDBUtil}
 
-object  ReportAPIService {
-  case class SubmitReportRequest(request: String, config: Config)
-  case class GetReportRequest(reportId: String, config: Config)
-  case class UpdateReportRequest(reportId:String,request: String, config: Config)
-  case class DeleteReportRequest(reportId:String,config: Config)
+case class SubmitReportRequest(request: String, config: Config)
 
-  def submitReport(request  : String)(implicit  config: Config) ={
+case class GetReportRequest(reportId: String, config: Config)
 
-    val body = JSONUtils.deserialize[ReportRequestBody](request)
-    val response = CommonUtil.caseClassToMap(body.request)
-    CommonUtil.OK(APIIds.REPORT_SUBMIT_REQUEST, response)
+case class UpdateReportRequest(reportId: String, request: String, config: Config)
 
-  }
+case class DeleteReportRequest(reportId: String, config: Config)
 
-  def deleteReport(request  : String)(implicit  config: Config) ={
-
-  }
-
-  def updateReport(reportId: String,request  : String)(implicit  config: Config) ={
-
-  }
+case class GetReportListRequest(request: String, config: Config)
 
 
-  def getReport(reportId : String)(implicit  commonUtil: Config) : Response = {
+class ReportAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor {
 
-    val config  ="{\"reportConfig\":{\"id\":\"district_monthly\",\"queryType\":\"groupBy\",\"dateRange\":{\"staticInterval\":\"LastMonth\",\"granularity\":\"all\"},\"metrics\":[{\"metric\":\"totalUniqueDevices\",\"label\":\"Total Unique Devices\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"telemetry-events\",\"intervals\":\"LastMonth\",\"aggregations\":[{\"name\":\"total_unique_devices\",\"type\":\"cardinality\",\"fieldName\":\"context_did\"}],\"dimensions\":[{\"fieldName\":\"derived_loc_state\",\"aliasName\":\"state\"},{\"fieldName\":\"derived_loc_district\",\"aliasName\":\"district\"}],\"filters\":[{\"type\":\"in\",\"dimension\":\"context_pdata_id\",\"values\":[\"__producerEnv__.diksha.portal\",\"__producerEnv__.diksha.app\"]},{\"type\":\"isnotnull\",\"dimension\":\"derived_loc_state\"},{\"type\":\"isnotnull\",\"dimension\":\"derived_loc_district\"}],\"descending\":\"false\"}}],\"labels\":{\"state\":\"State\",\"district\":\"District\",\"total_unique_devices\":\"Number of Unique Devices\"},\"output\":[{\"type\":\"csv\",\"metrics\":[\"total_unique_devices\"],\"dims\":[\"state\"],\"fileParameters\":[\"id\",\"dims\"]}]},\"store\":\"__store__\",\"container\":\"__container__\",\"key\":\"druid-reports/\"}";
-    val response =CommonUtil.OK(APIIds.REPORT_GET_REQUEST, CommonUtil.caseClassToMap(ReportResponse("district_monthly", "UniqueDevice district wise monthly", "sunbird" ,"Monthly"
-      , JSONUtils.deserialize[Map[String,Any]](config) , 1585623738000L, 1585623738000L, 1585623738000L, "SUBMITTED", "Report Sucessfully Submitted")))
-    response
+    def receive: PartialFunction[Any, Unit] = {
+        case SubmitReportRequest(request: String, config: Config) => sender() ! submitReport(request)(config)
+        case GetReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
+        case GetReportListRequest(request: String, config: Config) => sender() ! getReportList(request)(config)
+        case DeleteReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
+        case UpdateReportRequest(reportId: String, request: String, config: Config) => sender() ! updateReport(reportId, request)(config)
 
-  }
+    }
 
-  def getReportList() : Response ={
+    def submitReport(request: String)(implicit config: Config): Response = {
+        val body = JSONUtils.deserialize[ReportRequestBody](request)
+        val reportRequest = body.request
+        val isValidRequest = validateRequest(reportRequest)
+        if ("success".equals(isValidRequest.getOrElse("status", ""))) {
+            val report = postgresDBUtil.readReport(reportRequest.reportId)
+            report.map { _ =>
+                CommonUtil.errorResponse(APIIds.REPORT_SUBMIT_REQUEST, "ReportId already Exists", ResponseCode.OK.toString)
+            }.getOrElse({
+                postgresDBUtil.saveReportConfig(reportRequest)
+                val response = CommonUtil.caseClassToMap(body.request)
+                CommonUtil.OK(APIIds.REPORT_SUBMIT_REQUEST, response)
+            })
+        }
+        else {
+            CommonUtil.reportErrorResponse(APIIds.REPORT_SUBMIT_REQUEST, isValidRequest, ResponseCode.CLIENT_ERROR.toString)
+        }
+    }
 
-    val config  = "{\"reportConfig\":{\"id\":\"district_monthly\",\"queryType\":\"groupBy\",\"dateRange\":{\"staticInterval\":\"LastMonth\",\"granularity\":\"all\"},\"metrics\":[{\"metric\":\"totalUniqueDevices\",\"label\":\"Total Unique Devices\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"telemetry-events\",\"intervals\":\"LastMonth\",\"aggregations\":[{\"name\":\"total_unique_devices\",\"type\":\"cardinality\",\"fieldName\":\"context_did\"}],\"dimensions\":[{\"fieldName\":\"derived_loc_state\",\"aliasName\":\"state\"},{\"fieldName\":\"derived_loc_district\",\"aliasName\":\"district\"}],\"filters\":[{\"type\":\"in\",\"dimension\":\"context_pdata_id\",\"values\":[\"__producerEnv__.diksha.portal\",\"__producerEnv__.diksha.app\"]},{\"type\":\"isnotnull\",\"dimension\":\"derived_loc_state\"},{\"type\":\"isnotnull\",\"dimension\":\"derived_loc_district\"}],\"descending\":\"false\"}}],\"labels\":{\"state\":\"State\",\"district\":\"District\",\"total_unique_devices\":\"Number of Unique Devices\"},\"output\":[{\"type\":\"csv\",\"metrics\":[\"total_unique_devices\"],\"dims\":[\"state\"],\"fileParameters\":[\"id\",\"dims\"]}]},\"store\":\"__store__\",\"container\":\"__container__\",\"key\":\"druid-reports/\"}";
-    val config1 = "{\"reportConfig\":{\"id\":\"Desktop-Consumption-Daily-Reports\",\"queryType\":\"groupBy\",\"dateRange\":{\"staticInterval\":\"LastDay\",\"granularity\":\"day\"},\"metrics\":[{\"metric\":\"totalContentDownloadDesktop\",\"label\":\"Total Content Download\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"telemetry-events\",\"intervals\":\"LastDay\",\"granularity\":\"all\",\"aggregations\":[{\"name\":\"total_content_download_on_desktop\",\"type\":\"count\",\"fieldName\":\"mid\"}],\"dimensions\":[{\"fieldName\":\"content_board\",\"aliasName\":\"state\"}],\"filters\":[{\"type\":\"equals\",\"dimension\":\"context_env\",\"value\":\"downloadManager\"},{\"type\":\"equals\",\"dimension\":\"edata_state\",\"value\":\"COMPLETED\"},{\"type\":\"equals\",\"dimension\":\"context_pdata_id\",\"value\":\"'$producer_env'.diksha.desktop\"},{\"type\":\"equals\",\"dimension\":\"eid\",\"value\":\"AUDIT\"}],\"descending\":\"false\"}},{\"metric\":\"totalContentPlayedDesktop\",\"label\":\"Total time spent in hours\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"summary-events\",\"intervals\":\"LastDay\",\"granularity\":\"all\",\"aggregations\":[{\"name\":\"total_content_plays_on_desktop\",\"type\":\"count\",\"fieldName\":\"mid\"}],\"dimensions\":[{\"fieldName\":\"collection_board\",\"aliasName\":\"state\"}],\"filters\":[{\"type\":\"equals\",\"dimension\":\"eid\",\"value\":\"ME_WORKFLOW_SUMMARY\"},{\"type\":\"equals\",\"dimension\":\"dimensions_mode\",\"value\":\"play\"},{\"type\":\"equals\",\"dimension\":\"dimensions_type\",\"value\":\"content\"},{\"type\":\"equals\",\"dimension\":\"dimensions_pdata_id\",\"value\":\"'$producer_env'.diksha.desktop\"}],\"descending\":\"false\"}},{\"metric\":\"totalContentPlayedInHourOnDesktop\",\"label\":\"Total Content Download\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"summary-events\",\"intervals\":\"LastDay\",\"granularity\":\"all\",\"aggregations\":[{\"name\":\"sum__edata_time_spent\",\"type\":\"doubleSum\",\"fieldName\":\"edata_time_spent\"}],\"dimensions\":[{\"fieldName\":\"collection_board\",\"aliasName\":\"state\"}],\"filters\":[{\"type\":\"equals\",\"dimension\":\"eid\",\"value\":\"ME_WORKFLOW_SUMMARY\"},{\"type\":\"equals\",\"dimension\":\"dimensions_mode\",\"value\":\"play\"},{\"type\":\"equals\",\"dimension\":\"dimensions_type\",\"value\":\"content\"},{\"type\":\"equals\",\"dimension\":\"dimensions_pdata_id\",\"value\":\"'$producer_env'.diksha.desktop\"}],\"postAggregation\":[{\"type\":\"arithmetic\",\"name\":\"total_time_spent_in_hours_on_desktop\",\"fields\":{\"leftField\":\"sum__edata_time_spent\",\"rightField\":3600,\"rightFieldType\":\"constant\"},\"fn\":\"/\"}],\"descending\":\"false\"}},{\"metric\":\"totalUniqueDevicesPlayedContentOnDesktop\",\"label\":\"Total Unique Devices On Desktop that played content\",\"druidQuery\":{\"queryType\":\"groupBy\",\"dataSource\":\"summary-events\",\"intervals\":\"LastDay\",\"granularity\":\"all\",\"aggregations\":[{\"name\":\"total_unique_devices_on_desktop_played_content\",\"type\":\"cardinality\",\"fieldName\":\"dimensions_did\"}],\"dimensions\":[{\"fieldName\":\"collection_board\",\"aliasName\":\"state\"}],\"filters\":[{\"type\":\"equals\",\"dimension\":\"eid\",\"value\":\"ME_WORKFLOW_SUMMARY\"},{\"type\":\"equals\",\"dimension\":\"dimensions_mode\",\"value\":\"play\"},{\"type\":\"equals\",\"dimension\":\"dimensions_type\",\"value\":\"content\"},{\"type\":\"equals\",\"dimension\":\"dimensions_pdata_id\",\"value\":\"'$producer_env'.diksha.desktop\"}],\"descending\":\"false\"}}],\"labels\":{\"state\":\"State\",\"total_content_plays_on_desktop\":\"Total Content Played\",\"total_content_download_on_desktop\":\"Total Content Downloads\",\"total_time_spent_in_hours_on_desktop\":\"Total time spent in hours\",\"total_unique_devices_on_desktop_played_content\":\"Total Unique Devices On Desktop that played content\"},\"output\":[{\"type\":\"csv\",\"label\":\"desktop\",\"metrics\":[\"total_content_download_on_desktop\",\"total_time_spent_in_hours_on_desktop\",\"total_content_plays_on_desktop\",\"total_unique_devices_on_desktop_played_content\"],\"dims\":[\"state\"],\"fileParameters\":[\"dims\"]}]},\"store\":\"__store__\",\"container\":\"__container__\",\"key\":\"druid-reports/\"}";
-    val response =CommonUtil.OK(APIIds.REPORT_GET_REQUEST, Map("reports" -> List(CommonUtil.caseClassToMap(ReportResponse("district_monthly", "UniqueDevice district wise monthly", "sunbird" ,"Monthly",
-      JSONUtils.deserialize[Map[String,Any]](config), 1585623738000L, 1585623738000L, 1585623738000L,
-      "SUBMITTED", "Report Sucessfully Submitted")),CommonUtil.caseClassToMap(ReportResponse("Desktop-Consumption-Daily-Reports", "Desktop Consumption-Daily-Reports",
-      "sunbird" ,"Daily", JSONUtils.deserialize[Map[String,Any]](config1),
-      1585623738000L, 1585623738000L, 1585623738000L, "ACTIVE", "REPORT ACTIVE")))))
-    response
-  }
-}
+    def deleteReport(reportId: String)(implicit config: Config): Response = {
+        val report = postgresDBUtil.readReport(reportId)
+        report.map { _ =>
+            postgresDBUtil.deleteReport(reportId)
+            CommonUtil.OK(APIIds.REPORT_DELETE_REQUEST, Map("result" -> "Successfully Deleted Report"))
+        }.getOrElse({
+            CommonUtil.errorResponse(APIIds.REPORT_DELETE_REQUEST, "no report available with requested", ResponseCode.OK.toString)
+        })
+    }
 
-class ReportAPIService extends Actor {
+    def updateReport(reportId: String, request: String)(implicit config: Config): Response = {
+        val body = JSONUtils.deserialize[ReportRequestBody](request)
+        val reportRequest = body.request
+        val report = postgresDBUtil.readReport(reportId)
+        report.map { value =>
+            val isValidRequest = validateRequest(reportRequest)
+            if ("success".equals(isValidRequest.getOrElse("status", ""))) {
+                postgresDBUtil.updateReportConfig(value.reportId, reportRequest)
+                CommonUtil.OK(APIIds.REPORT_UPDATE_REQUEST, CommonUtil.caseClassToMap(reportRequest))
+            } else {
+                CommonUtil.reportErrorResponse(APIIds.REPORT_UPDATE_REQUEST, isValidRequest, ResponseCode.CLIENT_ERROR.toString)
+            }
+        }.getOrElse({
+            CommonUtil.errorResponse(APIIds.REPORT_UPDATE_REQUEST, "no report available with requested reportid", ResponseCode.OK.toString)
+        })
+    }
 
-  import ReportAPIService._
 
-  def receive = {
-    case SubmitReportRequest(request: String, config: Config) => sender() ! submitReport(request)(config)
-    case GetReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
-    case "getReportList" => sender() ! getReportList()
-    case DeleteReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
-    case UpdateReportRequest(reportId: String, request:String ,config: Config) => sender() ! getReport(reportId)(config)
+    def getReport(reportId: String)(implicit config: Config): Response = {
 
-  }
+        val report = postgresDBUtil.readReport(reportId)
+        report.map { value =>
+            CommonUtil.OK(APIIds.REPORT_GET_REQUEST, CommonUtil.caseClassToMap(value))
+        }.getOrElse({
+            CommonUtil.errorResponse(APIIds.REPORT_GET_REQUEST, "no report available with requested reportid", ResponseCode.OK.toString)
+        })
+    }
+
+    def getReportList(request: String)(implicit config: Config): Response = {
+
+        val body = JSONUtils.deserialize[ReportFilter](request)
+        val reportList = postgresDBUtil.readReportList(body.request.filter("status"))
+        if (reportList.nonEmpty) {
+            val response = reportList.map { report =>
+                CommonUtil.caseClassToMap(report)
+            }
+            CommonUtil.OK(APIIds.REPORT_GET_REQUEST, Map("reports" -> response))
+        }
+        else {
+            CommonUtil.errorResponse(APIIds.REPORT_GET_REQUEST, "no report available with requested filters", ResponseCode.OK.toString)
+        }
+    }
+
+
+    private def validateRequest(request: ReportRequest)(implicit config: Config): Map[String, String] = {
+        val errMap = scala.collection.mutable.Map[String, String]()
+        if (null == request) {
+            errMap("request") = "Request should not be empty"
+        } else {
+            if (Option(request.reportId).isEmpty) {
+                errMap("request.reportId") = "Report Id should not be  empty"
+            }
+            if (Option(request.description).isEmpty) {
+                errMap("request.description") = "Report Description should not empty"
+            }
+            if (Option(request.createdBy).isEmpty) {
+                errMap("request.createdBy") = "Created By should not be empty"
+            }
+
+            if (Option(request.config).isEmpty) {
+                errMap("request.config") = "Config should not be empty"
+            } else if (request.config.get("reportConfig").isEmpty) {
+                errMap("request.config.reportConfig") = "Report Config  should not be empty"
+            } else if (request.config.get("store").isEmpty) {
+                errMap("request.config.store") = "Config Store should not be empty"
+            } else if (request.config.get("container").isEmpty) {
+                errMap("request.config.container") = "Config Container should not be empty"
+            } else if (request.config.get("key").isEmpty) {
+                errMap("request.config.key") = "Config Key should not be empty"
+            }
+        }
+        if (errMap.nonEmpty) errMap += ("status" -> "failed") else errMap += ("status" -> "success")
+        errMap.toMap
+    }
+
 }

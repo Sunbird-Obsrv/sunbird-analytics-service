@@ -12,7 +12,7 @@ case class GetReportRequest(reportId: String, config: Config)
 
 case class UpdateReportRequest(reportId: String, request: String, config: Config)
 
-case class DeleteReportRequest(reportId: String, config: Config)
+case class DeactivateReportRequest(reportId: String, config: Config)
 
 case class GetReportListRequest(request: String, config: Config)
 
@@ -23,7 +23,7 @@ class ReportAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor {
         case SubmitReportRequest(request: String, config: Config) => sender() ! submitReport(request)(config)
         case GetReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
         case GetReportListRequest(request: String, config: Config) => sender() ! getReportList(request)(config)
-        case DeleteReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
+        case DeactivateReportRequest(reportId: String, config: Config) => sender() ! deactivateReport(reportId)(config)
         case UpdateReportRequest(reportId: String, request: String, config: Config) => sender() ! updateReport(reportId, request)(config)
 
     }
@@ -47,13 +47,13 @@ class ReportAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor {
         }
     }
 
-    def deleteReport(reportId: String)(implicit config: Config): Response = {
+    def deactivateReport(reportId: String)(implicit config: Config): Response = {
         val report = postgresDBUtil.readReport(reportId)
         report.map { _ =>
-            postgresDBUtil.deleteReport(reportId)
-            CommonUtil.OK(APIIds.REPORT_DELETE_REQUEST, Map("result" -> "Successfully Deleted Report"))
+            postgresDBUtil.deactivateReport(reportId)
+            CommonUtil.OK(APIIds.REPORT_DELETE_REQUEST, Map("result" -> "Successfully DeActivated the Report"))
         }.getOrElse({
-            CommonUtil.errorResponse(APIIds.REPORT_DELETE_REQUEST, "no report available with requested", ResponseCode.OK.toString)
+            CommonUtil.errorResponse(APIIds.REPORT_DELETE_REQUEST, "no report available with requested reportId", ResponseCode.OK.toString)
         })
     }
 
@@ -93,7 +93,7 @@ class ReportAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor {
             val response = reportList.map { report =>
                 CommonUtil.caseClassToMap(report)
             }
-            CommonUtil.OK(APIIds.REPORT_GET_REQUEST, Map("reports" -> response))
+            CommonUtil.OK(APIIds.REPORT_GET_REQUEST, Map("count"-> response.size.asInstanceOf[AnyRef] , "reports" -> response))
         }
         else {
             CommonUtil.errorResponse(APIIds.REPORT_GET_REQUEST, "no report available with requested filters", ResponseCode.OK.toString)

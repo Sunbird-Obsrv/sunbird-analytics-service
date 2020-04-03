@@ -33,7 +33,7 @@ class ReportControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
             case SubmitReportRequest(request: String, config: Config) => sender() ! submitReport(request)(config)
             case GetReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
             case GetReportListRequest(request: String, config: Config) => sender() ! getReportList(request)(config)
-            case DeleteReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
+            case DeactivateReportRequest(reportId: String, config: Config) => sender() ! getReport(reportId)(config)
             case UpdateReportRequest(reportId: String, request: String, config: Config) => sender() ! updateReport(reportId, request)(config)
 
         }
@@ -50,8 +50,8 @@ class ReportControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
         Helpers.status(result) should be(Helpers.OK)
     }
 
-    "ReportController" should "test the delete report " in {
-        val result = controller.deleteReport("district_monthly").apply(FakeRequest())
+    "ReportController" should "test the deactivate report " in {
+        val result = controller.deactivateReport("district_monthly").apply(FakeRequest())
         Helpers.status(result) should be(Helpers.OK)
     }
 

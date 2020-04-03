@@ -110,13 +110,16 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
             "request.description" -> "Report Description should not empty"))
     }
 
-    "ReportAPIService" should "delete the report with valid reportId" in {
-        val response = reportApiServiceActorRef.underlyingActor.deleteReport("district_weekly")
+    "ReportAPIService" should "deactivate the report with valid reportId" in {
+        postgresUtil.readReport("district_weekly").get.status should be("SUBMITTED")
+        val response = reportApiServiceActorRef.underlyingActor.deactivateReport("district_weekly")
         response.params.status should be("successful")
+        postgresUtil.readReport("district_weekly").get.status should be("INACTIVE")
+
     }
 
-    "ReportAPIService" should "failed to delete the report with invalid reportId" in {
-        val response = reportApiServiceActorRef.underlyingActor.deleteReport("invalid_id")
+    "ReportAPIService" should "failed to deactivate the report with invalid reportId" in {
+        val response = reportApiServiceActorRef.underlyingActor.deactivateReport("invalid_id")
         response.params.status should be("failed")
     }
 
@@ -159,7 +162,7 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
         result = Await.result((reportApiServiceActorRef ? GetReportRequest("district-weekly", config)).mapTo[Response], 20.seconds)
         result.params.status should be("failed")
 
-        result = Await.result((reportApiServiceActorRef ? DeleteReportRequest("district_weekly", config)).mapTo[Response], 20.seconds)
+        result = Await.result((reportApiServiceActorRef ? DeactivateReportRequest("district_weekly", config)).mapTo[Response], 20.seconds)
         result.responseCode should be("OK")
     }
 }

@@ -60,9 +60,8 @@ class PostgresDBUtil {
         sql"select * from ${ReportConfig.table} where report_id = ${reportId}".map(rc => ReportConfig(rc)).first().apply()
     }
 
-    def deleteReport(reportId: String) = {
-        sql"delete from ${ReportConfig.table} where report_id=$reportId".execute().apply()
-
+    def deactivateReport(reportId: String) = {
+        sql"update ${ReportConfig.table} set updated_on =${new Date()}, status='INACTIVE',status_msg = 'REPORT DEACTIVATED' where report_id=$reportId".update().apply()
     }
 
 

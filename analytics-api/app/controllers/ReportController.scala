@@ -52,8 +52,8 @@ class ReportController @Inject()(
         }
     }
 
-    def deleteReport(reportId: String) = Action.async { request: Request[AnyContent] =>
-        val res = ask(reportActor, DeleteReportRequest(reportId, config)).mapTo[Response]
+    def deactivateReport(reportId: String) = Action.async { request: Request[AnyContent] =>
+        val res = ask(reportActor, DeactivateReportRequest(reportId, config)).mapTo[Response]
         res.map { x =>
             result(x.responseCode, JSONUtils.serialize(x))
         }

@@ -88,7 +88,7 @@ class ReportAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor {
     def getReportList(request: String)(implicit config: Config): Response = {
 
         val body = JSONUtils.deserialize[ReportFilter](request)
-        val reportList = postgresDBUtil.readReportList(body.request.filter("status"))
+        val reportList = postgresDBUtil.readReportList(body.request.filters("status"))
         if (reportList.nonEmpty) {
             val response = reportList.map { report =>
                 CommonUtil.caseClassToMap(report)

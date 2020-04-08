@@ -36,7 +36,7 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
       report_schedule, config, created_on, submitted_on, status, status_msg) values
       ('district_weekly', '${new Date()}', 'District Weekly Description',
         'User1','Weekly' , '{"reportConfig":{"id":"district_weekly","queryType":"groupBy","dateRange":{"staticInterval":"LastMonth","granularity":"all"},"metrics":[{"metric":"totalUniqueDevices","label":"Total Unique Devices","druidQuery":{"queryType":"groupBy","dataSource":"telemetry-events","intervals":"LastMonth","aggregations":[{"name":"total_unique_devices","type":"cardinality","fieldName":"context_did"}],"dimensions":[{"fieldName":"derived_loc_state","aliasName":"state"},{"fieldName":"derived_loc_district","aliasName":"district"}],"filters":[{"type":"in","dimension":"context_pdata_id","values":["__producerEnv__.diksha.portal","__producerEnv__.diksha.app"]},{"type":"isnotnull","dimension":"derived_loc_state"},{"type":"isnotnull","dimension":"derived_loc_district"}],"descending":"false"}}],"labels":{"state":"State","district":"District","total_unique_devices":"Number of Unique Devices"},"output":[{"type":"csv","metrics":["total_unique_devices"],"dims":["state"],"fileParameters":["id","dims"]}]},"store":"__store__","container":"__container__","key":"druid-reports/"}',
-        '${new Date()}', '${new Date()}' ,'SUBMITTED', 'Report SUBMITTED')""")
+        '${new Date()}', '${new Date()}' ,'ACTIVE', 'Report Updated')""")
     }
 
     override def afterAll(): Unit = {
@@ -70,14 +70,14 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
     }
 
     "ReportAPIService" should "return the list of reports" in {
-        val request = """{"request":{"filter":{"status":["ACTIVE","SUBMITTED"]}}}"""
+        val request = """{"request":{"filters":{"status":["ACTIVE","SUBMITTED"]}}}"""
         val response = reportApiServiceActorRef.underlyingActor.getReportList(request)
         response.responseCode should be("OK")
 
     }
 
     "ReportAPIService" should "return empty list of reports" in {
-        val request = """{"request":{"filter":{"status":["INACTIVE"]}}}"""
+        val request = """{"request":{"filters":{"status":["INACTIVE"]}}}"""
         val response = reportApiServiceActorRef.underlyingActor.getReportList(request)
         response.params.status should be("failed")
 
@@ -111,7 +111,7 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
     }
 
     "ReportAPIService" should "deactivate the report with valid reportId" in {
-        postgresUtil.readReport("district_weekly").get.status should be("SUBMITTED")
+        postgresUtil.readReport("district_weekly").get.status should be("ACTIVE")
         val response = reportApiServiceActorRef.underlyingActor.deactivateReport("district_weekly")
         response.params.status should be("successful")
         postgresUtil.readReport("district_weekly").get.status should be("INACTIVE")
@@ -151,7 +151,7 @@ class TestReportAPIService extends FlatSpec with Matchers with BeforeAndAfterAll
         var result = Await.result((reportApiServiceActorRef ? SubmitReportRequest(request, config)).mapTo[Response], 20.seconds)
         result.responseCode should be("OK")
 
-        result = Await.result((reportApiServiceActorRef ? GetReportListRequest("""{"request":{"filter":{"status":["ACTIVE","SUBMITTED"]}}}""", config)).mapTo[Response], 20.seconds)
+        result = Await.result((reportApiServiceActorRef ? GetReportListRequest("""{"request":{"filters":{"status":["ACTIVE","SUBMITTED"]}}}""", config)).mapTo[Response], 20.seconds)
         val resultMap = result.result.get
         val reportList = JSONUtils.deserialize[List[Response]](JSONUtils.serialize(resultMap.get("reports").get))
         reportList.length should be(1)

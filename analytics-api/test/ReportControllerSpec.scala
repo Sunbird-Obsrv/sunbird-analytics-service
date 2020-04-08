@@ -65,7 +65,7 @@ class ReportControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
 
         val reportConfig = ReportConfig("report-Id", 0L, "desc", "user1", "monthly", Map.empty, 0L, 0L, "submitted", "submitted")
         when(postgresUtilMock.readReportList(List("ACTIVE", "SUBMITTED"))).thenReturn(List(reportConfig))
-        val result = controller.getReportList().apply(FakeRequest().withJsonBody(Json.parse("""{"request":{"filter":{"status":["ACTIVE","SUBMITTED"]}}}""")))
+        val result = controller.getReportList().apply(FakeRequest().withJsonBody(Json.parse("""{"request":{"filters":{"status":["ACTIVE","SUBMITTED"]}}}""")))
         Helpers.status(result) should be(Helpers.OK)
     }
 }

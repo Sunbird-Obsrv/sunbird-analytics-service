@@ -42,7 +42,7 @@ class PostgresDBUtil {
              report_schedule, config, created_on, submitted_on, status, status_msg) values
               (${reportRequest.reportId}, ${new Date()}, ${reportRequest.description},
               ${reportRequest.createdBy},${reportRequest.reportSchedule} , CAST($config AS JSON),
-              ${new Date()}, ${new Date()} ,'SUBMITTED', 'REPORT SUCCESSFULLY SUBMITTED')""".update().apply().toString
+              ${new Date()}, ${new Date()} ,'ACTIVE', 'REPORT SUCCESSFULLY ACTIVATED')""".update().apply().toString
     }
 
 
@@ -52,7 +52,7 @@ class PostgresDBUtil {
             sql"""update ${ReportConfig.table} set updated_on =${new Date()} ,
              report_description = ${reportRequest.description}, requested_by = ${reportRequest.createdBy} ,
              report_schedule = ${reportRequest.reportSchedule} , config = ($config::JSON) ,
-               status = 'SUBMITTED' , status_msg = 'REPORT SUCCESSFULLY SUBMITTED'  where report_id =$reportId"""
+               status = 'ACTIVE' , status_msg = 'REPORT SUCCESSFULLY ACTIVATED'  where report_id =$reportId"""
         q.update().apply().toString
     }
 

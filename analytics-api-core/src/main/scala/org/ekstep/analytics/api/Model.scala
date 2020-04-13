@@ -115,6 +115,10 @@ object APIIds {
 	val CLIENT_LOG = "ekstep.analytics.client-log"
 	val EXPERIEMNT_CREATE_REQUEST = "ekstep.analytics.experiement.create";
 	val EXPERIEMNT_GET_REQUEST = "ekstep.analytics.experiement.get";
+	val REPORT_GET_REQUEST = "ekstep.analytics.report.get";
+	val REPORT_SUBMIT_REQUEST = "ekstep.analytics.report.submit"
+	val REPORT_DELETE_REQUEST = "ekstep.analytics.report.delete"
+	val REPORT_UPDATE_REQUEST = "ekstep.analytics.report.update"
 }
 
 case class JobOutput(location: Option[String] = None, file_size: Option[Long] = None, dt_file_created: Option[String] = None, dt_first_event: Option[Long] = None, dt_last_event: Option[Long] = None, dt_expiration: Option[Long] = None);
@@ -140,4 +144,13 @@ case class ExperimentResponse(request: ExperimentCreateRequest, stats: Map[Strin
 
 case class ExperimentErrorResponse(expResponse: ExperimentResponse, err: String, errorMsg: Map[String, String])
 
+case class ReportRequestBody(id: String, ver: String, ts: String, request: ReportRequest, params: Option[Params])
+case class ReportRequest(reportId: String, description: String, createdBy: String, reportSchedule: String,
+						  config: Map[String,Any])
 
+case class ReportResponse(reportId: String, reportDescription: String, createdBy: String, reportSchedule: String,
+						  config: Map[String,Any], createdOn: Long, updatedOn: Long, submittedOn: Long, status: String, status_msg: String)
+
+
+case class ReportFilter(request: ListReportFilter)
+case class ListReportFilter(filters: Map[String,List[String]])

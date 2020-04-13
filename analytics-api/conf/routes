@@ -32,3 +32,12 @@ GET /dataset/request/list/:clientKey controllers.JobController.getJobList(client
 
 GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
 GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: String)
+
+
+# Report API
+
+POST /report/jobs/submit controllers.ReportController.submitReport
+GET  /report/jobs/:reportId controllers.ReportController.getReport(reportId: String)
+POST  /report/jobs controllers.ReportController.getReportList
+POST /report/jobs/deactivate/:reportId  controllers.ReportController.deactivateReport(reportId: String)
+POST /report/jobs/:reportId controllers.ReportController.updateReport(reportId: String)

@@ -19,6 +19,8 @@ class RedisUtil {
     poolConfig.setMaxTotal(AppConfig.getInt("redis.connection.max"))
     poolConfig.setMaxIdle(AppConfig.getInt("redis.connection.idle.max"))
     poolConfig.setMinIdle(AppConfig.getInt("redis.connection.idle.min"))
+    poolConfig.setTestOnBorrow(AppConfig.getBoolean("redis.connection.testOnBorrow"))
+    poolConfig.setTestOnReturn(AppConfig.getBoolean("redis.connection.testOnReturn"))
     poolConfig.setTestWhileIdle(true)
     poolConfig.setMinEvictableIdleTimeMillis(Duration.ofSeconds(AppConfig.getInt("redis.connection.minEvictableIdleTimeSeconds")).toMillis)
     poolConfig.setTimeBetweenEvictionRunsMillis(Duration.ofSeconds(AppConfig.getInt("redis.connection.timeBetweenEvictionRunsSeconds")).toMillis)

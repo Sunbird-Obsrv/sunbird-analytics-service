@@ -22,7 +22,4 @@ object AppConfig {
     conf.getDouble(key)
   }
 
-  def getBoolean(key: String): Boolean = {
-    conf.getBoolean(key)
-  }
 }

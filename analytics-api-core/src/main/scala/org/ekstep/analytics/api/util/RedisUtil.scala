@@ -26,7 +26,7 @@ class RedisUtil {
     poolConfig
   }
 
-  protected var jedisPool = new JedisPool(buildPoolConfig, redis_host, redis_port)
+  protected var jedisPool: JedisPool = new JedisPool(buildPoolConfig, redis_host, redis_port)
 
   def getConnection(database: Int): Jedis = {
     val conn = jedisPool.getResource

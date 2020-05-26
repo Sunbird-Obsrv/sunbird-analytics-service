@@ -2,14 +2,12 @@ package org.ekstep.analytics.api.service.experiment
 
 import akka.actor.Actor
 import akka.pattern.pipe
-import com.typesafe.config.{Config, ConfigFactory}
 import javax.inject.Inject
 import org.ekstep.analytics.api.util.{APILogger, ElasticsearchService, JSONUtils, RedisUtil}
 import redis.clients.jedis.Jedis
 
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.{Failure, Success}
 import org.ekstep.analytics.api.util.AppConfig
 
 case class ExperimentRequest(deviceId: Option[String], userId: Option[String], url: Option[String], producer: Option[String])
@@ -22,6 +20,12 @@ class ExperimentService @Inject()(redisUtil: RedisUtil, elasticsearchService :El
   val databaseIndex: Int = AppConfig.getInt("redis.experimentIndex")
   val emptyValueExpirySeconds: Int = AppConfig.getInt("experimentService.redisEmptyValueExpirySeconds")
   val NoExperimentAssigned = "NO_EXPERIMENT_ASSIGNED"
+
+
+  override def postStop(): Unit = {
+    redisUtil.closePool()
+    println("ExperimentService stopped successfully")
+  }
 
   def receive: Receive = {
     case ExperimentRequest(deviceId, userId, url, producer) => {

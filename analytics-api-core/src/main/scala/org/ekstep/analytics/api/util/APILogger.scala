@@ -1,6 +1,5 @@
 package org.ekstep.analytics.api.util
 
-import com.typesafe.config.ConfigFactory
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.ekstep.analytics.framework._

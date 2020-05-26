@@ -1,21 +1,19 @@
 package org.ekstep.analytics.api.service
 
-import akka.actor.{ Actor, ActorRef }
+import akka.actor.{Actor, ActorRef}
 import com.google.common.net.InetAddresses
 import com.google.common.primitives.UnsignedInts
 import com.typesafe.config.Config
 import is.tagomor.woothee.Classifier
-import javax.inject.{ Inject, Named }
+import javax.inject.{Inject, Named}
 import org.apache.logging.log4j.LogManager
 import org.ekstep.analytics.api.util._
-import org.joda.time.{ DateTime, DateTimeZone }
-import org.postgresql.util.PSQLException
+import org.joda.time.{DateTime, DateTimeZone}
 import redis.clients.jedis.Jedis
-import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ ExecutionContext, Future }
-import ExecutionContext.Implicits.global
+import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext.Implicits.global
 
 case class RegisterDevice(did: String, headerIP: String, ip_addr: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, dspec: Option[String] = None, uaspec: Option[String] = None, first_access: Option[Long] = None, user_declared_state: Option[String] = None, user_declared_district: Option[String] = None)
 case class DeviceProfileLog(device_id: String, location: DeviceLocation, device_spec: Option[Map[String, AnyRef]] = None, uaspec: Option[String] = None, fcm_token: Option[String] = None, producer_id: Option[String] = None, first_access: Option[Long] = None, user_declared_state: Option[String] = None, user_declared_district: Option[String] = None)
@@ -26,21 +24,22 @@ sealed trait DeviceRegisterStatus
 case object DeviceRegisterSuccesfulAck extends DeviceRegisterStatus
 case object DeviceRegisterFailureAck extends DeviceRegisterStatus
 
-class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsActor: ActorRef, config: Config, redisUtil: RedisUtil, kafkaUtil: KafkaUtil) extends Actor {
+class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsActor: ActorRef, config: Config,
+                                       redisUtil: RedisUtil, kafkaUtil: KafkaUtil) extends Actor {
 
   implicit val className: String = "DeviceRegisterService"
-  implicit val ec: ExecutionContext = context.system.dispatchers.lookup("device-register-actor-dispatcher")
   val metricsActor: ActorRef = saveMetricsActor
   val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
-  val deviceTopic = AppConfig.getString("kafka.device.register.topic")
+  val deviceTopic: String = AppConfig.getString("kafka.device.register.topic")
   private val logger = LogManager.getLogger("device-logger")
   private val enableDebugLogging = config.getBoolean("device.api.enable.debug.log")
 
   override def preStart { println("Starting DeviceRegisterService") }
 
   override def postStop {
-    println("Stopping DeviceRegisterService")
-    kafkaUtil.close();
+    redisUtil.closePool()
+    kafkaUtil.close()
+    println("DeviceRegisterService stopped successfully")
   }
 
   override def preRestart(reason: Throwable, message: Option[Any]) {
@@ -108,7 +107,7 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
 
   def logDeviceRegisterEvent(deviceProfileLog: DeviceProfileLog) = Future {
     val deviceRegisterLogEvent = generateDeviceRegistrationLogEvent(deviceProfileLog)
-    kafkaUtil.send(deviceRegisterLogEvent, deviceTopic);
+    kafkaUtil.send(deviceRegisterLogEvent, deviceTopic)
     metricsActor.tell(IncrementLogDeviceRegisterSuccessCount, ActorRef.noSender)
   }
 

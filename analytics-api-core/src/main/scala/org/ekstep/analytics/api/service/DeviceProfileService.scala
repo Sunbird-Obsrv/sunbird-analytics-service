@@ -1,32 +1,28 @@
 package org.ekstep.analytics.api.service
 
-import akka.actor.{ Actor, Props }
+import akka.actor.Actor
 import com.google.common.net.InetAddresses
 import com.google.common.primitives.UnsignedInts
 import com.typesafe.config.Config
 import javax.inject.Inject
 import org.ekstep.analytics.api.util._
 import redis.clients.jedis.Jedis
-import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scala.collection.JavaConverters._
-import scala.concurrent.{ ExecutionContext, Future, blocking }
-import ExecutionContext.Implicits.global
-import akka.pattern.{ ask, pipe }
-import org.ekstep.analytics.framework.util.CommonUtil
 
 case class DeviceProfileRequest(did: String, headerIP: String)
 
-class DeviceProfileService @Inject() (
-  config:    Config,
-  redisUtil: RedisUtil) extends Actor {
+class DeviceProfileService @Inject() (config: Config, redisUtil: RedisUtil) extends Actor {
 
   implicit val className: String = "DeviceProfileService"
   val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
 
   override def preStart { println("starting DeviceProfileService") }
 
-  override def postStop { println("Stopping DeviceProfileService") }
+  override def postStop {
+    redisUtil.closePool()
+    println("DeviceProfileService stopped successfully")
+  }
 
   override def preRestart(reason: Throwable, message: Option[Any]) {
     println(s"Restarting DeviceProfileActor: $message")

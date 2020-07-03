@@ -1,6 +1,5 @@
 package modules
 
-import akka.actor.Props
 import akka.routing.FromConfig
 import com.google.inject.AbstractModule
 import org.ekstep.analytics.api.service.{DeviceProfileService, _}
@@ -20,6 +19,7 @@ class ActorInjector extends AbstractModule with AkkaGuiceSupport {
     bindActor[ClientLogsAPIService](name = "client-log-actor")
     bindActor[DruidHealthCheckService](name = "druid-health-actor")
     bindActor[ReportAPIService](name = "report-actor")
+    bindActor[GroupAPIService](name = "group-actor")
 
     // Services
     APILogger.init("org.ekstep.analytics-api")

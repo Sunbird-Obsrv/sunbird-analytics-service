@@ -119,6 +119,7 @@ object APIIds {
 	val REPORT_SUBMIT_REQUEST = "ekstep.analytics.report.submit"
 	val REPORT_DELETE_REQUEST = "ekstep.analytics.report.delete"
 	val REPORT_UPDATE_REQUEST = "ekstep.analytics.report.update"
+	val GROUP_GET_ACTIVITY_AGGREGATES_REQUEST = "ekstep.analytics.group.activity.aggregates.get";
 }
 
 case class JobOutput(location: Option[String] = None, file_size: Option[Long] = None, dt_file_created: Option[String] = None, dt_first_event: Option[Long] = None, dt_last_event: Option[Long] = None, dt_expiration: Option[Long] = None);
@@ -154,3 +155,7 @@ case class ReportResponse(reportId: String, reportDescription: String, createdBy
 
 case class ReportFilter(request: ListReportFilter)
 case class ListReportFilter(filters: Map[String,List[String]])
+
+// Group API's
+case class GroupApiRequest(groupId: String, activityId: String, activityType: String, fields: Option[Array[String]])
+case class GroupRequestBody(id: String, ver: String, ts: String, request: GroupApiRequest, params: Option[Params])

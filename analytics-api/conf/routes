@@ -41,3 +41,6 @@ GET  /report/jobs/:reportId controllers.ReportController.getReport(reportId: Str
 POST  /report/jobs controllers.ReportController.getReportList
 POST /report/jobs/deactivate/:reportId  controllers.ReportController.deactivateReport(reportId: String)
 POST /report/jobs/:reportId controllers.ReportController.updateReport(reportId: String)
+
+# Group aggregates API
+POST /data/group/activity/agg controllers.GroupController.getActivityAggregates

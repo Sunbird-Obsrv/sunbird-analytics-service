@@ -33,6 +33,8 @@ object JobAPIService {
 
   case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config, summaryType: Option[String])
 
+  case class SummaryRollupData(channel: String, from: String, to: String, config: Config)
+
   val EVENT_TYPES = Buffer("raw", "summary", "metrics", "failed")
 
   val storageType = AppConf.getStorageType()
@@ -98,6 +100,34 @@ object JobAPIService {
       APILogger.log("Request Validation FAILED")
       CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
     }
+  }
+
+  def getSummaryRollupData(channel: String, from: String, to: String)(implicit config: Config, fc: FrameworkContext): Response = {
+
+//    val isValid = _validateRequest(channel, eventType, from, to)
+//    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+      val bucket = config.getString("channel.data_exhaust.bucket")
+      val basePrefix = config.getString("channel.summary_data_exhaust.basePrefix")
+      val expiry = config.getInt("channel.data_exhaust.expiryMins")
+      val prefix = basePrefix + channel + "/"
+      val storageService = fc.getStorageService(storageType)
+      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
+      val calendar = Calendar.getInstance()
+      calendar.add(Calendar.MINUTE, expiry)
+      val expiryTime = calendar.getTime.getTime
+      val expiryTimeInSeconds = expiryTime / 1000
+      if (listObjs.size > 0) {
+        val res = for (key <- listObjs) yield {
+          storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt))
+        }
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("summaryRollupDataURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
+      } else {
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("summaryRollupDataURLs" -> List(), "expiresAt" -> Long.box(0l)))
+      }
+//    } else {
+//      APILogger.log("Request Validation FAILED")
+//      CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+//    }
   }
 
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config): JobRequest = {
@@ -227,6 +257,7 @@ class JobAPIService extends Actor {
     case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config)
     case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config)
     case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config, summaryType: Option[String]) => sender() ! getChannelData(channel, eventType, from, to, summaryType)(config, fc)
+    case SummaryRollupData(channel: String, from: String, to: String, config: Config) => sender() ! getSummaryRollupData(channel, from, to)(config, fc)
   }
 
 }

@@ -77,18 +77,30 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val summaryType =  request.getQueryString("type")
     val from = request.getQueryString("from").getOrElse("")
     val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
     if (checkFlag) {
       APILogger.log(s"Authorization Successfull for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, summaryType)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
+      if (datasetId.equalsIgnoreCase("raw")) {
+        val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, None)).mapTo[Response]
+        res.map { x =>
+          result(x.responseCode, JSONUtils.serialize(x))
+        }
+      }
+      else if (datasetId.equalsIgnoreCase("summary"))  {
+        val res = ask(jobAPIActor, SummaryRollupData(channelId, from, to, config)).mapTo[Response]
+        res.map { x =>
+          result(x.responseCode, JSONUtils.serialize(x))
+        }
+      }
+      else {
+        val msg = s"Given datasetId='$datasetId' is not valid"
+        invalid(msg)
       }
     } else {
       val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
@@ -97,8 +109,37 @@ class JobController @Inject() (
     }
   }
 
+//  def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
+//
+//    val summaryType =  request.getQueryString("type")
+//    val from = request.getQueryString("from").getOrElse("")
+//    val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
+//
+//    val channelId = request.headers.get("X-Channel-ID").getOrElse("")
+//    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+//    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
+//    if (checkFlag) {
+//      APILogger.log(s"Authorization Successfull for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
+//      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, summaryType)).mapTo[Response]
+//      res.map { x =>
+//        result(x.responseCode, JSONUtils.serialize(x))
+//      }
+//    } else {
+//      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
+//      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
+//      unauthorized(msg)
+//    }
+//  }
+
   private def unauthorized(msg: String): Future[Result] = {
     val res = CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, msg, ResponseCode.FORBIDDEN.toString)
+    Future {
+      result(res.responseCode, JSONUtils.serialize(res))
+    }
+  }
+
+  private def invalid(msg: String): Future[Result] = {
+    val res = CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, msg, ResponseCode.CLIENT_ERROR.toString)
     Future {
       result(res.responseCode, JSONUtils.serialize(res))
     }

@@ -157,11 +157,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
     result = controller.getTelemetry("summary-rollup").apply(FakeRequest());
     Helpers.status(result) should be (Helpers.OK)
-
-    reset(mockConfig);
-    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
-    result = controller.getTelemetry("wfs").apply(FakeRequest());
-    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    
   }
 
   it should "test refresh cache API" in {

@@ -72,11 +72,11 @@ object JobAPIService {
     val isValid = _validateRequest(channel, datasetId, from, to)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val bucket = if (datasetId.contains("rollup")) config.getString("channel.data_exhaust.rollup.bucket") else config.getString("channel.data_exhaust.bucket")
-      val basePrefix = if (datasetId.contains("rollup"))config.getString("channel.data_exhaust.rollup.basePrefix") else config.getString("channel.data_exhaust.basePrefix")
+      val basePrefix = if (datasetId.contains("rollup")) config.getString("channel.data_exhaust.rollup.basePrefix") else config.getString("channel.data_exhaust.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
       val dates = org.ekstep.analytics.framework.util.CommonUtil.getDatesBetween(from, Option(to), "yyyy-MM-dd")
 
-      val prefix = basePrefix + channel + "/" + datasetId + "/"
+      val prefix = if (datasetId.contains("rollup")) basePrefix + datasetId + "/" + channel + "/" else basePrefix + channel + "/" + datasetId + "/"
       val storageService = fc.getStorageService(storageType)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
       val calendar = Calendar.getInstance()

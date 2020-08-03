@@ -295,6 +295,52 @@ class TestJobAPIService extends BaseSpec  {
     urls.head should be ("https://sunbird.org/test/signed")
     
   }
+
+  it should "get the channel data for summary rollup data" in {
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj = JobAPIService.getSummaryRollupData("in.ekstep", "2018-05-20", "2018-05-20")
+    resObj.responseCode should be("OK")
+    val res = resObj.result.getOrElse(Map())
+    val urls = res.get("summaryRollupDataURLs").get.asInstanceOf[List[String]];
+    urls.size should be (1)
+    urls.head should be ("https://sunbird.org/test/signed")
+
+  }
+
+  it should "cover all cases for summary rollup channel data" in {
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj1 = JobAPIService.getSummaryRollupData("in.ekstep", "2018-05-20", "2018-05-20")
+    resObj1.responseCode should be("OK")
+    val res1 = resObj1.result.getOrElse(Map())
+    val urls1 = res1.get("summaryRollupDataURLs").get.asInstanceOf[List[String]];
+    urls1.size should be (0)
+
+    val resObj2 = JobAPIService.getSummaryRollupData("in.ekstep", "2018-05-20", "9999-05-20")
+    resObj2.responseCode should be("CLIENT_ERROR")
+    resObj2.params.errmsg should be("'to' should be LESSER OR EQUAL TO today's date..")
+
+    val resObj3 = JobAPIService.getSummaryRollupData("in.ekstep", "2018-05-20", "2018-05-30")
+    resObj3.responseCode should be("CLIENT_ERROR")
+    resObj3.params.errmsg should be("Date range should be < 7 days")
+
+    val resObj4 = JobAPIService.getSummaryRollupData("in.ekstep", "2018-06-20", "2018-05-30")
+    resObj4.responseCode should be("CLIENT_ERROR")
+    resObj4.params.errmsg should be("Date range should not be -ve. Please check your 'from' & 'to'")
+  }
   
   it should "test all exception branches" in {
     import akka.pattern.ask

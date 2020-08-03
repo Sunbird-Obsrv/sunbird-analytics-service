@@ -77,9 +77,11 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val from = request.getQueryString("from").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getPreviousDay())
-    val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
-    val since = request.getQueryString("since").getOrElse("")
+    val since = request.getQueryString("since").getOrElse(0).asInstanceOf[Int]
+    val range = if (since > 0) org.ekstep.analytics.api.util.CommonUtil.getDatesFromSince(since) else ("", "")
+
+    val from = if (range._1.nonEmpty) range._1 else request.getQueryString("from").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getPreviousDay())
+    val to = if (range._2.nonEmpty) range._2 else request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
@@ -158,8 +160,13 @@ class JobController @Inject() (
 
   def authorizeDataExhaustRequest(consumerId: String, channelId: String): Boolean = {
     APILogger.log(s"Authorizing $consumerId and $channelId")
-    val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
-    if (status.getOrElse(0) == 1) true else false
+    val whitelistedConsumers = config.getStringList("channel.data_exhaust.whitelisted.consumers")
+    // if consumerId is present in whitelisted consumers, skip auth check
+    if (consumerId.nonEmpty && whitelistedConsumers.contains(consumerId)) true
+    else {
+      val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
+      if (status.getOrElse(0) == 1) true else false
+    }
   }
 
   def authorizeDataExhaustRequest(request: Request[AnyContent] ): Boolean = {

@@ -107,7 +107,7 @@ object JobAPIService {
     val isValid = _validateRequest(channel, from, to)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val bucket = config.getString("channel.data_exhaust.bucket")
-      val basePrefix = config.getString("channel.summary_data_exhaust.basePrefix")
+      val basePrefix = config.getString("channel.data_exhaust.summary.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
       val prefix = basePrefix + channel + "/"
       val storageService = fc.getStorageService(storageType)

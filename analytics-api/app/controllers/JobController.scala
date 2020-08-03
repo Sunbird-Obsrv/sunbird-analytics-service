@@ -77,7 +77,7 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val since = request.getQueryString("since").getOrElse(0).asInstanceOf[Int]
+    val since = request.getQueryString("since").getOrElse(0).asInstanceOf[Number].intValue()
     val range = if (since > 0) org.ekstep.analytics.api.util.CommonUtil.getDatesFromSince(since) else ("", "")
 
     val from = if (range._1.nonEmpty) range._1 else request.getQueryString("from").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getPreviousDay())

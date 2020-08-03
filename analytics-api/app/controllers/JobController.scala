@@ -104,13 +104,6 @@ class JobController @Inject() (
     }
   }
 
-  private def invalid(msg: String): Future[Result] = {
-    val res = CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, msg, ResponseCode.CLIENT_ERROR.toString)
-    Future {
-      result(res.responseCode, JSONUtils.serialize(res))
-    }
-  }
-
   def refreshCache(cacheType: String) = Action { implicit request =>
       cacheType match {
           case "ConsumerChannel" =>

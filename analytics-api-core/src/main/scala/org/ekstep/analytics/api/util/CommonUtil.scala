@@ -106,12 +106,4 @@ object CommonUtil {
         field.setAccessible(true)
         map + (field.getName -> field.get(ccObj))
     }
-
-  def getDatesFromSince(since: Int): (String, String) = {
-    val to = dateFormat.print(new DateTime().minusDays(1))
-    val from = dateFormat.print(new DateTime().minusDays(1 + since))
-    (to, from)
-  }
-
-
 }

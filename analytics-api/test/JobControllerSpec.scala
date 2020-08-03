@@ -5,7 +5,7 @@ import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.JobController
 import org.ekstep.analytics.api.APIIds
-import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest, SummaryRollupData}
+import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
 import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil}
 import org.junit.runner.RunWith
@@ -45,10 +45,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case DataRequestList(clientKey: String, limit: Int, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
       }
-      case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config, summaryType: Option[String]) => {
-        sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
-      }
-      case SummaryRollupData(channel: String, from: String, to: String, config: Config) => {
+      case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
       }
     }

@@ -31,11 +31,9 @@ object JobAPIService {
 
   case class DataRequestList(clientKey: String, limit: Int, config: Config)
 
-  case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config, summaryType: Option[String])
+  case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config)
 
-  case class SummaryRollupData(channel: String, from: String, to: String, config: Config)
-
-  val EVENT_TYPES = Buffer("raw", "summary", "metrics", "failed")
+  val EVENT_TYPES = Buffer("raw", "summary", "summary-rollup")
 
   val storageType = AppConf.getStorageType()
 
@@ -69,19 +67,16 @@ object JobAPIService {
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
   }
 
-  def getChannelData(channel: String, eventType: String, from: String, to: String, summaryType: Option[String])(implicit config: Config, fc: FrameworkContext): Response = {
+  def getChannelData(channel: String, datasetId: String, from: String, to: String)(implicit config: Config, fc: FrameworkContext): Response = {
 
-    val isValid = _validateRequest(channel, eventType, from, to)
+    val isValid = _validateRequest(channel, datasetId, from, to)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
-      val bucket = config.getString("channel.data_exhaust.bucket")
-      val basePrefix = config.getString("channel.data_exhaust.basePrefix")
+      val bucket = if (datasetId.contains("rollup")) config.getString("channel.data_exhaust.rollup.bucket") else config.getString("channel.data_exhaust.bucket")
+      val basePrefix = if (datasetId.contains("rollup"))config.getString("channel.data_exhaust.rollup.basePrefix") else config.getString("channel.data_exhaust.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
       val dates = org.ekstep.analytics.framework.util.CommonUtil.getDatesBetween(from, Option(to), "yyyy-MM-dd")
 
-      val prefix =
-        if (summaryType.nonEmpty && !StringUtils.equals(summaryType.getOrElse(""), "workflow-summary"))
-          basePrefix + channel + "/" + eventType + "/" + summaryType.get + "/"
-        else basePrefix + channel + "/" + eventType + "/"
+      val prefix = basePrefix + channel + "/" + datasetId + "/"
       val storageService = fc.getStorageService(storageType)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
       val calendar = Calendar.getInstance()
@@ -95,34 +90,6 @@ object JobAPIService {
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
       } else {
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> List(), "expiresAt" -> Long.box(0l)))
-      }
-    } else {
-      APILogger.log("Request Validation FAILED")
-      CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
-    }
-  }
-
-  def getSummaryRollupData(channel: String, from: String, to: String)(implicit config: Config, fc: FrameworkContext): Response = {
-
-    val isValid = _validateRequest(channel, from, to)
-    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
-      val bucket = config.getString("channel.data_exhaust.bucket")
-      val basePrefix = config.getString("channel.data_exhaust.summary.basePrefix")
-      val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val prefix = basePrefix + channel + "/"
-      val storageService = fc.getStorageService(storageType)
-      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
-      val calendar = Calendar.getInstance()
-      calendar.add(Calendar.MINUTE, expiry)
-      val expiryTime = calendar.getTime.getTime
-      val expiryTimeInSeconds = expiryTime / 1000
-      if (listObjs.size > 0) {
-        val res = for (key <- listObjs) yield {
-          storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt))
-        }
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("summaryRollupDataURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
-      } else {
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("summaryRollupDataURLs" -> List(), "expiresAt" -> Long.box(0l)))
       }
     } else {
       APILogger.log("Request Validation FAILED")
@@ -230,31 +197,18 @@ object JobAPIService {
 
     APILogger.log("Validating Request", Option(Map("channel" -> channel, "eventType" -> eventType, "from" -> from, "to" -> to)))
     if (!EVENT_TYPES.contains(eventType)) {
-      return Map("status" -> "false", "message" -> "Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'metrics', or 'failed') in your request URL")
+      return Map("status" -> "false", "message" -> "Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'summary-rollup') in your request URL")
     }
-    if (StringUtils.isBlank(from)) {
-      return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
-    }
-    val days = CommonUtil.getDaysBetween(from, to)
+      if (StringUtils.isBlank(from)) {
+          return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
+      }
+      val days = CommonUtil.getDaysBetween(from, to)
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
     else if (0 > days)
       return Map("status" -> "false", "message" -> "Date range should not be -ve. Please check your 'from' & 'to'")
     else if (10 < days)
       return Map("status" -> "false", "message" -> "Date range should be < 10 days")
-    else return Map("status" -> "true")
-  }
-
-  private def _validateRequest(channel: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
-
-    APILogger.log("Validating Request", Option(Map("channel" -> channel, "from" -> from, "to" -> to)))
-    val days = CommonUtil.getDaysBetween(from, to)
-    if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
-      return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
-    else if (0 > days)
-      return Map("status" -> "false", "message" -> "Date range should not be -ve. Please check your 'from' & 'to'")
-    else if (7 < days)
-      return Map("status" -> "false", "message" -> "Date range should be < 7 days")
     else return Map("status" -> "true")
   }
 }
@@ -269,8 +223,7 @@ class JobAPIService extends Actor {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config)
     case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config)
     case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config, summaryType: Option[String]) => sender() ! getChannelData(channel, eventType, from, to, summaryType)(config, fc)
-    case SummaryRollupData(channel: String, from: String, to: String, config: Config) => sender() ! getSummaryRollupData(channel, from, to)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to)(config, fc)
   }
 
 }

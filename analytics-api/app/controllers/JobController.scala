@@ -77,8 +77,9 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val from = request.getQueryString("from").getOrElse("")
+    val from = request.getQueryString("from").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getPreviousDay())
     val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
+    val since = request.getQueryString("since").getOrElse("")
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
@@ -86,13 +87,13 @@ class JobController @Inject() (
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
     if (checkFlag) {
       APILogger.log(s"Authorization Successfull for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      if (datasetId.equalsIgnoreCase("raw")) {
+      if (datasetId.equalsIgnoreCase("raw") || datasetId.equalsIgnoreCase("summary")) {
         val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, None)).mapTo[Response]
         res.map { x =>
           result(x.responseCode, JSONUtils.serialize(x))
         }
       }
-      else if (datasetId.equalsIgnoreCase("summary"))  {
+      else if (datasetId.equalsIgnoreCase("summary-rollup"))  {
         val res = ask(jobAPIActor, SummaryRollupData(channelId, from, to, config)).mapTo[Response]
         res.map { x =>
           result(x.responseCode, JSONUtils.serialize(x))

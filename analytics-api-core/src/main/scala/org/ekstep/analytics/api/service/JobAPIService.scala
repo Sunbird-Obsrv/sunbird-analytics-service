@@ -104,8 +104,8 @@ object JobAPIService {
 
   def getSummaryRollupData(channel: String, from: String, to: String)(implicit config: Config, fc: FrameworkContext): Response = {
 
-//    val isValid = _validateRequest(channel, eventType, from, to)
-//    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+    val isValid = _validateRequest(channel, from, to)
+    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val bucket = config.getString("channel.data_exhaust.bucket")
       val basePrefix = config.getString("channel.summary_data_exhaust.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
@@ -124,10 +124,10 @@ object JobAPIService {
       } else {
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("summaryRollupDataURLs" -> List(), "expiresAt" -> Long.box(0l)))
       }
-//    } else {
-//      APILogger.log("Request Validation FAILED")
-//      CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
-//    }
+    } else {
+      APILogger.log("Request Validation FAILED")
+      CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+    }
   }
 
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config): JobRequest = {
@@ -232,6 +232,22 @@ object JobAPIService {
     if (!EVENT_TYPES.contains(eventType)) {
       return Map("status" -> "false", "message" -> "Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'metrics', or 'failed') in your request URL")
     }
+    if (StringUtils.isBlank(from)) {
+      return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
+    }
+    val days = CommonUtil.getDaysBetween(from, to)
+    if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
+      return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
+    else if (0 > days)
+      return Map("status" -> "false", "message" -> "Date range should not be -ve. Please check your 'from' & 'to'")
+    else if (10 < days)
+      return Map("status" -> "false", "message" -> "Date range should be < 10 days")
+    else return Map("status" -> "true")
+  }
+
+  private def _validateRequest(channel: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
+
+    APILogger.log("Validating Request", Option(Map("channel" -> channel, "from" -> from, "to" -> to)))
     if (StringUtils.isBlank(from)) {
       return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
     }

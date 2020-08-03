@@ -20,14 +20,12 @@ import org.mockito.ArgumentMatchers
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import akka.actor.ActorRef
-import org.ekstep.analytics.api.service.JobAPIService.ChannelData
+import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest, SummaryRollupData}
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
 import akka.util.Timeout
-import org.ekstep.analytics.api.service.JobAPIService.DataRequestList
-import org.ekstep.analytics.api.service.JobAPIService.DataRequest
-import org.ekstep.analytics.api.service.JobAPIService.GetDataRequest
 
 class TestJobAPIService extends BaseSpec  {
   
@@ -349,6 +347,10 @@ class TestJobAPIService extends BaseSpec  {
     var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, config, None)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
+
+    result = Await.result((jobApiServiceActorRef ? SummaryRollupData("in.ekstep", fromDate, toDate, config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+    result.params.errmsg should be("Date range should be < 7 days")
     
     result = Await.result((jobApiServiceActorRef ? DataRequestList("partner1", 10, config)).mapTo[Response], 20.seconds)
     val resultMap = result.result.get

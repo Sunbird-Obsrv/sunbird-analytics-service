@@ -209,11 +209,11 @@ class TestJobAPIService extends BaseSpec  {
 
   //  // Channel Exhaust Test Cases
   //  // -ve Test cases
-  it should "return a CLIENT_ERROR in the response if we set `datasetID` other than these ('raw', 'summary', 'summary-rollup')" in {
+  it should "return a CLIENT_ERROR in the response if we set `datasetID` other than valid" in {
     val datasetId = "test"
     val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15")
     resObj.responseCode should be("CLIENT_ERROR")
-    resObj.params.errmsg should be("Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'summary-rollup') in your request URL")
+    resObj.params.errmsg should be("Please provide valid datasetId in request URL")
   }
 
   it should "return a CLIENT_ERROR in the response if 'fromDate' is empty" in {
@@ -254,7 +254,7 @@ class TestJobAPIService extends BaseSpec  {
     resObj.responseCode should be("OK")
   }
 
-  ignore should "return a successfull response if datasetID is one of these ('raw', 'summary', 'metrics', 'failed') - S3" in {
+  ignore should "return a successfull response if datasetID is valid - S3" in {
     val datasetId = "raw"
     val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-20", "2018-05-21")
     resObj.responseCode should be("OK")

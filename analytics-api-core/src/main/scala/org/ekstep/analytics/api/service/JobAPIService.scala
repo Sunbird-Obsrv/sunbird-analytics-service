@@ -33,8 +33,6 @@ object JobAPIService {
 
   case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config)
 
-  val EVENT_TYPES = Buffer("raw", "summary", "summary-rollup")
-
   val storageType = AppConf.getStorageType()
 
   def dataRequest(request: String, channel: String)(implicit config: Config): Response = {
@@ -71,12 +69,11 @@ object JobAPIService {
 
     val isValid = _validateRequest(channel, datasetId, from, to)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
-      val bucket = if (datasetId.contains("rollup")) config.getString("channel.data_exhaust.rollup.bucket") else config.getString("channel.data_exhaust.bucket")
-      val basePrefix = if (datasetId.contains("rollup")) config.getString("channel.data_exhaust.rollup.basePrefix") else config.getString("channel.data_exhaust.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val dates = org.ekstep.analytics.framework.util.CommonUtil.getDatesBetween(from, Option(to), "yyyy-MM-dd")
+      val bucket = if (config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket").isEmpty) config.getString("channel.data_exhaust.dataset.default.bucket") else config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket")
+      val basePrefix = if (config.getString(s"channel.data_exhaust.dataset.$datasetId.basePrefix").isEmpty) config.getString("channel.data_exhaust.dataset.default.basePrefix") else config.getString(s"channel.data_exhaust.dataset.$datasetId.basePrefix")
+      val prefix = StringUtils.replace(basePrefix, "$channel", channel)
 
-      val prefix = if (datasetId.contains("rollup")) basePrefix + datasetId + "/" + channel + "/" else basePrefix + channel + "/" + datasetId + "/"
       val storageService = fc.getStorageService(storageType)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
       val calendar = Calendar.getInstance()
@@ -196,13 +193,15 @@ object JobAPIService {
   private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
 
     APILogger.log("Validating Request", Option(Map("channel" -> channel, "eventType" -> eventType, "from" -> from, "to" -> to)))
-    if (!EVENT_TYPES.contains(eventType)) {
-      return Map("status" -> "false", "message" -> "Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'summary-rollup') in your request URL")
+    val datasetTypes = config.getObject("channel.data_exhaust.dataset").unwrapped().keySet()
+    datasetTypes.remove("default")
+    if (!datasetTypes.contains(eventType)) {
+      return Map("status" -> "false", "message" -> "Please provide valid datasetId in request URL")
     }
-      if (StringUtils.isBlank(from)) {
-          return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
-      }
-      val days = CommonUtil.getDaysBetween(from, to)
+    if (StringUtils.isBlank(from)) {
+      return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
+    }
+    val days = CommonUtil.getDaysBetween(from, to)
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
     else if (0 > days)

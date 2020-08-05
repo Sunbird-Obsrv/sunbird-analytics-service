@@ -73,8 +73,10 @@ object JobAPIService {
     val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val bucket = if (config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket").isEmpty) config.getString("channel.data_exhaust.dataset.default.bucket") else config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket")
-      val basePrefix = if (config.getString(s"channel.data_exhaust.dataset.$datasetId.basePrefix").isEmpty) config.getString("channel.data_exhaust.dataset.default.basePrefix") else config.getString(s"channel.data_exhaust.dataset.$datasetId.basePrefix")
+      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
+      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
+      val bucket = datasetConfig.get("bucket").toString
+      val basePrefix = datasetConfig.get("basePrefix").toString
       val prefix = StringUtils.replace(basePrefix, "$channel", channel)
 
       val storageService = fc.getStorageService(storageType)
@@ -196,11 +198,6 @@ object JobAPIService {
   private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
 
     APILogger.log("Validating Request", Option(Map("channel" -> channel, "eventType" -> eventType, "from" -> from, "to" -> to)))
-    val datasetTypes = config.getObject("channel.data_exhaust.dataset").unwrapped().keySet()
-    datasetTypes.remove("default")
-    if (!datasetTypes.contains(eventType)) {
-      return Map("status" -> "false", "message" -> "Please provide valid datasetId in request URL")
-    }
     val days = CommonUtil.getDaysBetween(from, to)
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")

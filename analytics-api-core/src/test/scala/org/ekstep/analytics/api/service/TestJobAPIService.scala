@@ -209,11 +209,21 @@ class TestJobAPIService extends BaseSpec  {
 
   //  // Channel Exhaust Test Cases
   //  // -ve Test cases
-  it should "return a CLIENT_ERROR in the response if we set `datasetID` other than valid" in {
-    val datasetId = "test"
-    val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15")
-    resObj.responseCode should be("CLIENT_ERROR")
-    resObj.params.errmsg should be("Please provide valid datasetId in request URL")
+  it should "return response for default datasetId if we set `datasetID` other than valid" in {
+
+      reset(mockStorageService)
+      when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+      when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+      when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+      when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+      doNothing().when(mockStorageService).closeContext()
+
+      val datasetId = "test"
+      val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15")
+      resObj.responseCode should be("OK")
+      val res = resObj.result.getOrElse(Map())
+      val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+      urls.size should be (0)
   }
 
   it should "return a CLIENT_ERROR in the response if 'fromDate' is empty and taking previous day by default" in {

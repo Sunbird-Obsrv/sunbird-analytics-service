@@ -216,11 +216,11 @@ class TestJobAPIService extends BaseSpec  {
     resObj.params.errmsg should be("Please provide valid datasetId in request URL")
   }
 
-  it should "return a CLIENT_ERROR in the response if 'fromDate' is empty" in {
+  it should "return a CLIENT_ERROR in the response if 'fromDate' is empty and taking previous day by default" in {
     val fromDate = ""
     val resObj = JobAPIService.getChannelData("in.ekstep", "raw", fromDate, "2018-05-15")
     resObj.responseCode should be("CLIENT_ERROR")
-    resObj.params.errmsg should be("Please provide 'from' in query string")
+    resObj.params.errmsg should be("Date range should not be -ve. Please check your 'from' & 'to'")
   }
 
   it should "return a CLIENT_ERROR in the response if 'endDate' is empty older than fromDate" in {
@@ -344,11 +344,11 @@ class TestJobAPIService extends BaseSpec  {
     import akka.pattern.ask
     val toDate = new LocalDate().toString()
     val fromDate = new LocalDate().minusDays(11).toString()
-    var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, config)).mapTo[Response], 20.seconds)
+    var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
 
-    result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "summary-rollup", fromDate, toDate, config)).mapTo[Response], 20.seconds)
+    result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "summary-rollup", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
     

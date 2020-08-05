@@ -45,7 +45,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case DataRequestList(clientKey: String, limit: Int, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
       }
-      case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config) => {
+      case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
       }
     }

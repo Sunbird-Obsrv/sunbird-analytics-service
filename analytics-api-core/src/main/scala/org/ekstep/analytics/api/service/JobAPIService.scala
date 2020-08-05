@@ -31,7 +31,7 @@ object JobAPIService {
 
   case class DataRequestList(clientKey: String, limit: Int, config: Config)
 
-  case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config)
+  case class ChannelData(channel: String, event_type: String, from: String, to: String, since: String, config: Config)
 
   val storageType = AppConf.getStorageType()
 
@@ -65,9 +65,12 @@ object JobAPIService {
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
   }
 
-  def getChannelData(channel: String, datasetId: String, from: String, to: String)(implicit config: Config, fc: FrameworkContext): Response = {
+  def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
 
-    val isValid = _validateRequest(channel, datasetId, from, to)
+    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
+    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+
+    val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
       val bucket = if (config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket").isEmpty) config.getString("channel.data_exhaust.dataset.default.bucket") else config.getString(s"channel.data_exhaust.dataset.$datasetId.bucket")
@@ -75,7 +78,7 @@ object JobAPIService {
       val prefix = StringUtils.replace(basePrefix, "$channel", channel)
 
       val storageService = fc.getStorageService(storageType)
-      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
+      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
@@ -198,9 +201,6 @@ object JobAPIService {
     if (!datasetTypes.contains(eventType)) {
       return Map("status" -> "false", "message" -> "Please provide valid datasetId in request URL")
     }
-    if (StringUtils.isBlank(from)) {
-      return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
-    }
     val days = CommonUtil.getDaysBetween(from, to)
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
@@ -222,7 +222,7 @@ class JobAPIService extends Actor {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config)
     case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config)
     case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
   }
 
 }

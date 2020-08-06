@@ -77,7 +77,8 @@ object JobAPIService {
       val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
       val bucket = datasetConfig.get("bucket").toString
       val basePrefix = datasetConfig.get("basePrefix").toString
-      val prefix = basePrefix + datasetId + "/" + channel
+      val prefix = basePrefix + datasetId + "/" + channel + "/"
+      APILogger.log("prefix: " + prefix)
 
       val storageService = fc.getStorageService(storageType)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)

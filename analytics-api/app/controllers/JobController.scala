@@ -77,16 +77,16 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val summaryType =  request.getQueryString("type")
+    val since = request.getQueryString("since").getOrElse("")
     val from = request.getQueryString("from").getOrElse("")
-    val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
+    val to = request.getQueryString("to").getOrElse("")
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
     if (checkFlag) {
       APILogger.log(s"Authorization Successfull for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, summaryType)).mapTo[Response]
+      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, since, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }
@@ -116,8 +116,13 @@ class JobController @Inject() (
 
   def authorizeDataExhaustRequest(consumerId: String, channelId: String): Boolean = {
     APILogger.log(s"Authorizing $consumerId and $channelId")
-    val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
-    if (status.getOrElse(0) == 1) true else false
+    val whitelistedConsumers = config.getStringList("channel.data_exhaust.whitelisted.consumers")
+    // if consumerId is present in whitelisted consumers, skip auth check
+    if (consumerId.nonEmpty && whitelistedConsumers.contains(consumerId)) true
+    else {
+      val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
+      if (status.getOrElse(0) == 1) true else false
+    }
   }
 
   def authorizeDataExhaustRequest(request: Request[AnyContent] ): Boolean = {

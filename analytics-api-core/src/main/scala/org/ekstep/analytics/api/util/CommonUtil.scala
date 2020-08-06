@@ -82,6 +82,10 @@ object CommonUtil {
     dateFormat.print(new DateTime)
   }
 
+  def getPreviousDay(): String = {
+    dateFormat.print(new DateTime().minusDays(1))
+  }
+
   def getPeriod(date: String): Int = {
     try {
       Integer.parseInt(date.replace("-", ""))
@@ -102,5 +106,4 @@ object CommonUtil {
         field.setAccessible(true)
         map + (field.getName -> field.get(ccObj))
     }
-
 }

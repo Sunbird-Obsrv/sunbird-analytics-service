@@ -31,9 +31,7 @@ object JobAPIService {
 
   case class DataRequestList(clientKey: String, limit: Int, config: Config)
 
-  case class ChannelData(channel: String, event_type: String, from: String, to: String, config: Config, summaryType: Option[String])
-
-  val EVENT_TYPES = Buffer("raw", "summary", "metrics", "failed")
+  case class ChannelData(channel: String, event_type: String, from: String, to: String, since: String, config: Config)
 
   val storageType = AppConf.getStorageType()
 
@@ -67,21 +65,22 @@ object JobAPIService {
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
   }
 
-  def getChannelData(channel: String, eventType: String, from: String, to: String, summaryType: Option[String])(implicit config: Config, fc: FrameworkContext): Response = {
+  def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
 
-    val isValid = _validateRequest(channel, eventType, from, to)
+    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
+    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+
+    val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
-      val bucket = config.getString("channel.data_exhaust.bucket")
-      val basePrefix = config.getString("channel.data_exhaust.basePrefix")
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val dates = org.ekstep.analytics.framework.util.CommonUtil.getDatesBetween(from, Option(to), "yyyy-MM-dd")
+      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
+      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
+      val bucket = datasetConfig.get("bucket").toString
+      val basePrefix = datasetConfig.get("basePrefix").toString
+      val prefix = basePrefix + datasetId + "/" + channel
 
-      val prefix =
-        if (summaryType.nonEmpty && !StringUtils.equals(summaryType.getOrElse(""), "workflow-summary"))
-          basePrefix + channel + "/" + eventType + "/" + summaryType.get + "/"
-        else basePrefix + channel + "/" + eventType + "/"
       val storageService = fc.getStorageService(storageType)
-      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(from), Option(to), None)
+      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
@@ -199,12 +198,6 @@ object JobAPIService {
   private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
 
     APILogger.log("Validating Request", Option(Map("channel" -> channel, "eventType" -> eventType, "from" -> from, "to" -> to)))
-    if (!EVENT_TYPES.contains(eventType)) {
-      return Map("status" -> "false", "message" -> "Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'metrics', or 'failed') in your request URL")
-    }
-    if (StringUtils.isBlank(from)) {
-      return Map("status" -> "false", "message" -> "Please provide 'from' in query string")
-    }
     val days = CommonUtil.getDaysBetween(from, to)
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
@@ -226,7 +219,7 @@ class JobAPIService extends Actor {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config)
     case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config)
     case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config, summaryType: Option[String]) => sender() ! getChannelData(channel, eventType, from, to, summaryType)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
   }
 
 }

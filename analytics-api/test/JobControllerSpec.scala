@@ -1,10 +1,10 @@
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef}
+import akka.testkit.TestActorRef
 import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.JobController
-import org.ekstep.analytics.api.{APIIds}
+import org.ekstep.analytics.api.APIIds
 import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
 import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil}
@@ -45,7 +45,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case DataRequestList(clientKey: String, limit: Int, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
       }
-      case ChannelData(channel: String, eventType: String, from: String, to: String, config: Config, summaryType: Option[String]) => {
+      case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
       }
     }
@@ -129,8 +129,35 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
-    result = controller.getTelemetry("testDataSet").apply(FakeRequest());
+    result = controller.getTelemetry("raw").apply(FakeRequest());
     Helpers.status(result) should be (Helpers.OK)
+  }
+
+  it should "test get telemetry API - summary rollup data" in {
+
+    reset(cacheUtil);
+    reset(mockConfig);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
+
+    var result = controller.getTelemetry("summary-rollup").apply(FakeRequest());
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='' are not authorized"""") should not be (-1)
+
+    reset(mockConfig);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
+    val consumerList = new java.util.ArrayList[String]()
+    consumerList.add("trusted-consumer")
+    when(mockConfig.getStringList("channel.data_exhaust.whitelisted.consumers")).thenReturn(consumerList);
+    result = controller.getTelemetry("summary-rollup").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel"),("X-Consumer-ID", "trusted-consumer")));
+    Helpers.status(result) should be (Helpers.OK)
+
+    reset(mockConfig);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
+    result = controller.getTelemetry("summary-rollup").apply(FakeRequest());
+    Helpers.status(result) should be (Helpers.OK)
+    
   }
 
   it should "test refresh cache API" in {

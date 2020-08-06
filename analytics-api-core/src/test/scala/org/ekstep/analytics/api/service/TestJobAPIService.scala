@@ -20,14 +20,12 @@ import org.mockito.ArgumentMatchers
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import akka.actor.ActorRef
-import org.ekstep.analytics.api.service.JobAPIService.ChannelData
+import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
 import akka.util.Timeout
-import org.ekstep.analytics.api.service.JobAPIService.DataRequestList
-import org.ekstep.analytics.api.service.JobAPIService.DataRequest
-import org.ekstep.analytics.api.service.JobAPIService.GetDataRequest
 
 class TestJobAPIService extends BaseSpec  {
   
@@ -211,30 +209,40 @@ class TestJobAPIService extends BaseSpec  {
 
   //  // Channel Exhaust Test Cases
   //  // -ve Test cases
-  it should "return a CLIENT_ERROR in the response if we set `datasetID` other than these ('raw', 'summary', 'metrics', 'failed')" in {
-    val datasetId = "test"
-    val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15", None)
-    resObj.responseCode should be("CLIENT_ERROR")
-    resObj.params.errmsg should be("Please provide 'eventType' value should be one of these -> ('raw' or 'summary' or 'metrics', or 'failed') in your request URL")
+  it should "return response for default datasetId if we set `datasetID` other than valid" in {
+
+      reset(mockStorageService)
+      when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+      when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+      when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+      when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+      doNothing().when(mockStorageService).closeContext()
+
+      val datasetId = "test"
+      val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15")
+      resObj.responseCode should be("OK")
+      val res = resObj.result.getOrElse(Map())
+      val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+      urls.size should be (0)
   }
 
-  it should "return a CLIENT_ERROR in the response if 'fromDate' is empty" in {
+  it should "return a CLIENT_ERROR in the response if 'fromDate' is empty and taking previous day by default" in {
     val fromDate = ""
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", fromDate, "2018-05-15", None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", fromDate, "2018-05-15")
     resObj.responseCode should be("CLIENT_ERROR")
-    resObj.params.errmsg should be("Please provide 'from' in query string")
+    resObj.params.errmsg should be("Date range should not be -ve. Please check your 'from' & 'to'")
   }
 
   it should "return a CLIENT_ERROR in the response if 'endDate' is empty older than fromDate" in {
     val toDate = "2018-05-10"
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-15", toDate, None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-15", toDate)
     resObj.responseCode should be("CLIENT_ERROR")
     resObj.params.errmsg should be("Date range should not be -ve. Please check your 'from' & 'to'")
   }
 
   it should "return a CLIENT_ERROR in the response if 'endDate' is a future date" in {
     val toDate = new LocalDate().plusDays(1).toString()
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-15", toDate, None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-15", toDate)
     resObj.responseCode should be("CLIENT_ERROR")
     resObj.params.errmsg should be("'to' should be LESSER OR EQUAL TO today's date..")
   }
@@ -243,7 +251,7 @@ class TestJobAPIService extends BaseSpec  {
     val toDate = new LocalDate().toString()
     val fromDate = new LocalDate().minusDays(11).toString()
 
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", fromDate, toDate, None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", fromDate, toDate)
     resObj.responseCode should be("CLIENT_ERROR")
     resObj.params.errmsg should be("Date range should be < 10 days")
   }
@@ -252,13 +260,13 @@ class TestJobAPIService extends BaseSpec  {
   //
   ignore should "return a successfull response if 'to' is empty" in {
     val toDate = ""
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", toDate, None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", toDate)
     resObj.responseCode should be("OK")
   }
 
-  ignore should "return a successfull response if datasetID is one of these ('raw', 'summary', 'metrics', 'failed') - S3" in {
+  ignore should "return a successfull response if datasetID is valid - S3" in {
     val datasetId = "raw"
-    val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-20", "2018-05-21", None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-20", "2018-05-21")
     resObj.responseCode should be("OK")
   }
 
@@ -271,7 +279,7 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
     doNothing().when(mockStorageService).closeContext()
     
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", None)
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20")
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
     val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
@@ -287,7 +295,7 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
     doNothing().when(mockStorageService).closeContext()
     
-    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20", Option("device-summary"))
+    val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20")
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
     val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
@@ -295,12 +303,62 @@ class TestJobAPIService extends BaseSpec  {
     urls.head should be ("https://sunbird.org/test/signed")
     
   }
+
+  it should "get the channel data for summary rollup data" in {
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-20")
+    resObj.responseCode should be("OK")
+    val res = resObj.result.getOrElse(Map())
+    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls.size should be (1)
+    urls.head should be ("https://sunbird.org/test/signed")
+
+  }
+
+  it should "cover all cases for summary rollup channel data" in {
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj1 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-20")
+    resObj1.responseCode should be("OK")
+    val res1 = resObj1.result.getOrElse(Map())
+    val urls1 = res1.get("telemetryURLs").get.asInstanceOf[List[String]];
+    urls1.size should be (0)
+
+    val resObj2 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "9999-05-20")
+    resObj2.responseCode should be("CLIENT_ERROR")
+    resObj2.params.errmsg should be("'to' should be LESSER OR EQUAL TO today's date..")
+
+    val resObj3 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-10", "2018-05-30")
+    resObj3.responseCode should be("CLIENT_ERROR")
+    resObj3.params.errmsg should be("Date range should be < 10 days")
+
+    val resObj4 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-06-20", "2018-05-30")
+    resObj4.responseCode should be("CLIENT_ERROR")
+    resObj4.params.errmsg should be("Date range should not be -ve. Please check your 'from' & 'to'")
+  }
   
   it should "test all exception branches" in {
     import akka.pattern.ask
     val toDate = new LocalDate().toString()
     val fromDate = new LocalDate().minusDays(11).toString()
-    var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, config, None)).mapTo[Response], 20.seconds)
+    var result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "raw", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+    result.params.errmsg should be("Date range should be < 10 days")
+
+    result = Await.result((jobApiServiceActorRef ? ChannelData("in.ekstep", "summary-rollup", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
     

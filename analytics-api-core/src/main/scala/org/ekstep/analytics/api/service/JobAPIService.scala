@@ -78,6 +78,8 @@ object JobAPIService {
       val bucket = datasetConfig.get("bucket").toString
       val basePrefix = datasetConfig.get("basePrefix").toString
       val prefix = basePrefix + datasetId + "/" + channel
+      println("prefix: " + prefix)
+      APILogger.log("prefix: " + prefix)
 
       val storageService = fc.getStorageService(storageType)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)

@@ -88,11 +88,13 @@ object JobAPIService {
       val expiryTimeInSeconds = expiryTime / 1000
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
-          storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt))
+          val dateKey = StringUtils.split(StringUtils.split(key.toString, "/").last, ".").head
+          (dateKey, storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt)))
         }
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> res, "expiresAt" -> Long.box(expiryTime)))
+        val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
       } else {
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("telemetryURLs" -> List(), "expiresAt" -> Long.box(0l)))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map(), "expiresAt" -> Long.box(0l)))
       }
     } else {
       APILogger.log("Request Validation FAILED")

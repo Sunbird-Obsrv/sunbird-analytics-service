@@ -88,7 +88,7 @@ object JobAPIService {
       val expiryTimeInSeconds = expiryTime / 1000
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
-          val dateKey = StringUtils.split(StringUtils.split(key.toString, "/").last, ".").head
+          val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
           (dateKey, storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt)))
         }
         val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))

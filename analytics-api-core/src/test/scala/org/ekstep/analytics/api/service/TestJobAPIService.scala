@@ -222,7 +222,7 @@ class TestJobAPIService extends BaseSpec  {
       val resObj = JobAPIService.getChannelData("in.ekstep", datasetId, "2018-05-14", "2018-05-15")
       resObj.responseCode should be("OK")
       val res = resObj.result.getOrElse(Map())
-      val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+      val urls = res.get("files").get.asInstanceOf[List[String]];
       urls.size should be (0)
   }
 
@@ -282,8 +282,10 @@ class TestJobAPIService extends BaseSpec  {
     val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20")
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
-    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    val urls = res.get("files").get.asInstanceOf[List[String]];
     urls.size should be (0)
+    val periodWiseFiles = res.get("periodWiseFiles").get.asInstanceOf[Map[String,List[String]]];
+    periodWiseFiles.size should be (0)
   }
   
   it should "get the channel data for summary data" in {
@@ -291,16 +293,19 @@ class TestJobAPIService extends BaseSpec  {
     reset(mockStorageService)
     when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
     when(mockStorageService.upload(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("");
-    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed");
-    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test"));
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/2018-05-20.json");
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("https://sunbird.org/test/2018-05-20.json"));
     doNothing().when(mockStorageService).closeContext()
     
     val resObj = JobAPIService.getChannelData("in.ekstep", "raw", "2018-05-20", "2018-05-20")
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
-    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    val urls = res.get("files").get.asInstanceOf[List[String]];
     urls.size should be (1)
-    urls.head should be ("https://sunbird.org/test/signed")
+    urls.head should be ("https://sunbird.org/test/signed/2018-05-20.json")
+    val periodWiseFiles = res.get("periodWiseFiles").get.asInstanceOf[Map[String,List[String]]];
+    periodWiseFiles.size should be (1)
+    periodWiseFiles.get("2018-05-20").get.head should be ("https://sunbird.org/test/signed/2018-05-20.json")
     
   }
 
@@ -316,7 +321,7 @@ class TestJobAPIService extends BaseSpec  {
     val resObj = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-20")
     resObj.responseCode should be("OK")
     val res = resObj.result.getOrElse(Map())
-    val urls = res.get("telemetryURLs").get.asInstanceOf[List[String]];
+    val urls = res.get("files").get.asInstanceOf[List[String]];
     urls.size should be (1)
     urls.head should be ("https://sunbird.org/test/signed")
 
@@ -334,7 +339,7 @@ class TestJobAPIService extends BaseSpec  {
     val resObj1 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-20")
     resObj1.responseCode should be("OK")
     val res1 = resObj1.result.getOrElse(Map())
-    val urls1 = res1.get("telemetryURLs").get.asInstanceOf[List[String]];
+    val urls1 = res1.get("files").get.asInstanceOf[List[String]];
     urls1.size should be (0)
 
     val resObj2 = JobAPIService.getChannelData("in.ekstep", "summary-rollup", "2018-05-20", "9999-05-20")

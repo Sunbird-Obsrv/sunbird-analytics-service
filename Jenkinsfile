@@ -37,8 +37,7 @@ node('build-slave') {
                 '''
         }
         stage('Package') {
-             sh('chmod 777 build.sh')
-             sh("build.sh ${build_tag} ${"analytics-service"}")
+             sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
         }
         stage('Archive artifacts'){
             sh """

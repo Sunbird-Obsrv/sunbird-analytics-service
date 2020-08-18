@@ -92,9 +92,6 @@
 		<Logger name="crash-logger" level="info" additivity="false">
 			<AppenderRef ref="Console"/>
 		</Logger>
-		<Logger name="device-logger" level="info" additivity="false">
-			<AppenderRef ref="Console"/>
-		</Logger>
 		<Logger name="accesslog" level="info" additivity="false">
 			<AppenderRef ref="Console" />
 		</Logger>

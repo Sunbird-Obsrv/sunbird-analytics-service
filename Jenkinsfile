@@ -36,6 +36,10 @@ node('build-slave') {
                 mvn play2:dist -pl analytics-api
                 '''
         }
+        stage('Package') {
+             sh('chmod 777 build.sh')
+             sh("build.sh ${build_tag} ${"analytics-service"}")
+        }
         stage('Archive artifacts'){
             sh """
                         mkdir lpa_service_artifacts

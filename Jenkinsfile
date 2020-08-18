@@ -31,13 +31,13 @@ node('build-slave') {
         }
         stage('Build') {
             sh '''
-                sed -i "s#>logs<#>/mount/data/analytics/logs/api-service<#g" analytics-api/conf/log4j2.xml
                 mvn clean install -DskipTests
                 mvn play2:dist -pl analytics-api
                 '''
         }
         stage('Package') {
-             sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
+             #sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
+             sh "/opt/apache-maven-3.6.3/bin/mvn3.6 dockerfile:build -Drelease-version=${build_tag}"
         }
         stage('Archive artifacts'){
             sh """

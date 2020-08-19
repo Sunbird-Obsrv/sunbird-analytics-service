@@ -34,7 +34,6 @@ node('build-slave') {
                    mvn clean install -DskipTests
                    mvn play2:dist -pl analytics-api
                    """
-                }
             }
             stage('Package') {
                 dir('sunbird-analytics-service-distribution') {

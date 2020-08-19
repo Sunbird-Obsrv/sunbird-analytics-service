@@ -36,9 +36,7 @@ node('build-slave') {
                 '''
         }
         stage('Package') {
-             dir('sunbird-analytics-service-distribution') {
-                sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
-             }
+            sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
         }
         stage('Archive artifacts'){
             sh """

@@ -22,6 +22,11 @@ node('build-slave') {
             println(ANSI_BOLD + ANSI_YELLOW + "github_release_tag specified, building from github_release_tag: " + params.github_release_tag + ANSI_NORMAL)
                 }
                 echo "artifact_version: "+ artifact_version
+                if (!env.hub_org) {
+                    println(ANSI_BOLD + ANSI_RED + "Uh Oh! Please set a Jenkins environment variable named hub_org with value as registery/sunbidrded" + ANSI_NORMAL)
+                    error 'Please resolve the errors and rerun..'
+                } else
+                    println(ANSI_BOLD + ANSI_GREEN + "Found environment variable named hub_org with value as: " + hub_org + ANSI_NORMAL)
             }
         }
         stage('Pre-Build') {
@@ -40,6 +45,12 @@ node('build-slave') {
                 sh "cp ../analytics-api/target/analytics-api-2.0-dist.zip ."
                 sh "/opt/apache-maven-3.6.3/bin/mvn3.6 package -Pbuild-docker-image -Drelease-version=${build_tag}"
             }
+        }
+        stage('Retagging'){
+             sh """
+                docker tag sunbird-analytics-service:${build_tag} ${hub_org}/sunbird-analytics-service:${build_tag}
+                echo {\\"image_name\\" : \\"sunbird-analytics-service\\", \\"image_tag\\" : \\"${build_tag}\\", \\"node_name\\" : \\"${env.NODE_NAME}\\"} > metadata.json
+                """
         }
         stage('Archive artifacts'){
             sh """

@@ -8,6 +8,7 @@ RUN chown -R analytics:analytics /home/analytics
 USER analytics
 COPY analytics-api-2.0-dist.zip /home/analytics/
 RUN unzip /home/analytics/analytics-api-2.0-dist.zip -d /home/analytics/
+RUN rm -rf /home/analytics/analytics-api-2.0/lib/org.slf4j.slf4j-log4j12-1.7.16.jar
 RUN rm /home/analytics/analytics-api-2.0-dist.zip
 WORKDIR /home/analytics/
 CMD java -XX:+PrintFlagsFinal $JAVA_OPTIONS $MIN_HEAP $MAX_HEAP -XX:+UseG1GC -XX:+UseStringDeduplication -cp '/home/analytics/analytics-api-2.0/lib/*' -Dconfig.file=/home/analytics/application.conf play.core.server.ProdServerStart /home/analytics/analytics-api-2.0

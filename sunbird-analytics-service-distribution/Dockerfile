@@ -6,7 +6,7 @@ RUN apk update \
     && mkdir -p /home/analytics
 RUN chown -R analytics:analytics /home/analytics
 USER analytics
-COPY analytics-api/target/analytics-api-2.0-dist.zip /home/analytics/
+COPY analytics-api-2.0-dist.zip /home/analytics/
 RUN unzip /home/analytics/analytics-api-2.0-dist.zip -d /home/analytics/
 RUN rm /home/analytics/analytics-api-2.0-dist.zip
 WORKDIR /home/analytics/

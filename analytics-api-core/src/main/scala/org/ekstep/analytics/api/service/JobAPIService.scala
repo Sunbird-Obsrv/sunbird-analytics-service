@@ -61,7 +61,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   def getDataRequest(clientKey: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
     val job = postgresDBUtil.getJobRequest(requestId, clientKey)
-    if (null == job || job.isEmpty) {
+    if (job.isEmpty) {
       CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and client_key", ResponseCode.OK.toString)
     } else {
       val jobStatusRes = _createJobResponse(job.get)
@@ -121,7 +121,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val jobConfig = body.request.jobConfig.getOrElse(Map.empty)
     val job = postgresDBUtil.getJobRequest(requestId, tag)
 
-    if (null == job || job.isEmpty) {
+    if (job.isEmpty) {
       _saveJobRequest(requestId, tag, jobId, requestedBy, channel, jobConfig)
     } else {
       job.get
@@ -159,8 +159,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else Option(JobStats(job.dt_job_submitted))
     val request = job.request_data
     val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
-    val downladUrls = job.download_urls.getOrElse(List[String]()).map{f => storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt)).asInstanceOf[String] }
-    JobResponse(job.request_id, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downladUrls), Option(expiryTimeInSeconds))
+    val downloadUrls = job.download_urls.getOrElse(List[String]()).map{f => storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt)).asInstanceOf[String] }
+    JobResponse(job.request_id, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
   }
 
   private def _saveJobRequest(requestId: String, tag: String, jobId: String, requestedBy: String, requestedChannel: String, request: Map[String, Any]): JobRequest = {

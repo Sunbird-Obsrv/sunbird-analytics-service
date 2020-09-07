@@ -143,9 +143,9 @@ class TestJobAPIService extends BaseSpec  {
   }
 
   "JobAPIService" should "return different request id for same tag having different requested channel" in {
-    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
     val response1 = jobApiServiceActorRef.underlyingActor.dataRequest(request1, "test-channel-1")
-    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
     val response2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "test-channel-2")
     response2.result.head.get("request_id").get should not be (response1.result.head.get("request_id").get)
 
@@ -311,16 +311,17 @@ class TestJobAPIService extends BaseSpec  {
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
     
-//    result = Await.result((jobApiServiceActorRef ? DataRequestList("partner1", 10, config)).mapTo[Response], 20.seconds)
-//    val resultMap = result.result.get
-//    val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
-//    jobRes.length should be(2)
-    
-//    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
-//    result = Await.result((jobApiServiceActorRef ? DataRequest(request, "in.ekstep", config)).mapTo[Response], 20.seconds)
-//    result.responseCode should be("OK")
-//
-//    result = Await.result((jobApiServiceActorRef ? GetDataRequest("client-1", "14621312DB7F8ED99BA1B16D8B430FAC", config)).mapTo[Response], 20.seconds)
-//    result.responseCode should be("OK")
+    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"requestedBy":"test-1","jobId":"course-progress-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    result = Await.result((jobApiServiceActorRef ? DataRequest(request1, "in.ekstep", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+
+    result = Await.result((jobApiServiceActorRef ? GetDataRequest("test-tag-1", "14621312DB7F8ED99BA1B16D8B430FAC", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("OK")
+
+    result = Await.result((jobApiServiceActorRef ? DataRequestList("client-3", 2, config)).mapTo[Response], 20.seconds)
+    val resultMap = result.result.get
+    val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
+    jobRes.length should be(0)
+
   }
 }

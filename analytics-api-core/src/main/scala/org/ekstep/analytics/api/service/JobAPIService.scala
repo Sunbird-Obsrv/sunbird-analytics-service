@@ -141,10 +141,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     }
   }
 
-  private def getDateInMillis(date: DateTime): Option[Long] = {
-    if (null != date) Option(date.getMillis) else None
-  }
-
   private def _createJobResponse(job: JobRequest)(implicit config: Config, fc: FrameworkContext): JobResponse = {
     val storageService = fc.getStorageService(storageType)
 

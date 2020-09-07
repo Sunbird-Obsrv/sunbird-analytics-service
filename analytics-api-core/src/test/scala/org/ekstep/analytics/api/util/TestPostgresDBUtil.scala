@@ -56,6 +56,6 @@ class TestPostgresDBUtil extends FlatSpec with Matchers with BeforeAndAfterAll {
     new GeoLocationCity();
     new GeoLocationRange();
     new ReportConfig()
-    EmbeddedPostgresql.close();
+//    EmbeddedPostgresql.close();
   }
 }

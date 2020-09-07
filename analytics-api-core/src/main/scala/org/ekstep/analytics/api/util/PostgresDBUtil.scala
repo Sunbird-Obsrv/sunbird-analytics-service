@@ -3,8 +3,10 @@ package org.ekstep.analytics.api.util
 import java.util.Date
 
 import javax.inject._
-import org.ekstep.analytics.api.ReportRequest
+import org.ekstep.analytics.api.{JobConfig, ReportRequest}
+import org.joda.time.DateTime
 import scalikejdbc._
+import collection.JavaConverters._
 
 @Singleton
 class PostgresDBUtil {
@@ -69,6 +71,21 @@ class PostgresDBUtil {
         sql"""select * from ${ReportConfig.table} where status IN ($status)""".map(rs => ReportConfig(rs)).list().apply()
     }
 
+    def getJobRequest(requestId: String, tag: String): Option[JobRequest] = {
+        sql"""select * from ${JobRequest.table} where request_id = $requestId and tag = $tag""".map(rs => JobRequest(rs)).first().apply()
+    }
+
+    def getJobRequestList(tag: String): List[JobRequest] = {
+        sql"""select * from ${JobRequest.table} where tag = $tag""".map(rs => JobRequest(rs)).list().apply()
+    }
+
+    def saveJobRequest(jobRequest: JobConfig) = {
+        val requestData = JSONUtils.serialize(jobRequest.request_data)
+        sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted") values
+              (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.job_id}, ${jobRequest.status},
+              CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
+              ${new Date()})""".update().apply().toString
+    }
 
     def checkConnection = {
         try {
@@ -153,5 +170,36 @@ object ReportConfig extends SQLSyntaxSupport[ReportConfig] {
         rs.timestamp("submitted_on").getTime,
         rs.string("status"),
         rs.string("status_msg")
+    )
+}
+
+case class JobRequest(tag: String, request_id: String, job_id: String, status: String,
+                      request_data: Map[String, Any], requested_by: String, requested_channel: String,
+                      dt_job_submitted: Long , download_urls: Option[List[String]], dt_file_created: Option[Long],
+                      dt_job_completed: Option[Long], execution_time: Option[Long], err_message: Option[String], iteration: Option[Int]) {
+    def this() = this("", "", "", "", Map[String, Any](), "", "", 0, None, None, None, None, None, None)
+}
+
+object JobRequest extends SQLSyntaxSupport[JobRequest] {
+    override val tableName = AppConfig.getString("postgres.table.job_request.name")
+    override val columns = Seq("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "download_urls", "dt_file_created", "dt_job_completed", "execution_time", "err_message", "iteration")
+    override val useSnakeCaseColumnName = false
+
+    def apply(rs: WrappedResultSet) = new JobRequest(
+        rs.string("tag"),
+        rs.string("request_id"),
+        rs.string("job_id"),
+        rs.string("status"),
+        JSONUtils.deserialize[Map[String, Any]](rs.string("request_data")),
+        rs.string("requested_by"),
+        rs.string("requested_channel"),
+        rs.timestamp("dt_job_submitted").getTime,
+        if(rs.arrayOpt("download_urls").nonEmpty) Option(rs.array("download_urls").getArray.asInstanceOf[Array[String]].toList) else None,
+        if(rs.timestampOpt("dt_file_created").nonEmpty) Option(rs.timestamp("dt_file_created").getTime) else None,
+        if(rs.timestampOpt("dt_job_completed").nonEmpty) Option(rs.timestamp("dt_job_completed").getTime) else None,
+        rs.longOpt("execution_time"),
+        rs.stringOpt("err_message"),
+        rs.intOpt("iteration")
     )
 }

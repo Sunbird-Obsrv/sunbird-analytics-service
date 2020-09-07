@@ -95,7 +95,7 @@ class TestExperimentAPIService extends BaseSpec {
       resp.responseCode should be("CLIENT_ERROR")
       resp.params.errorMsg should be (Map("status" -> "failed", "data.startDate" -> "Start_Date should be greater than or equal to today's date.."))
       
-      resp = ExperimentAPIService.createRequest("""{"id":"ekstep.analytics.experiment.create","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"expId":"UR1234","name":"USER_ORG","createdBy":"User1","description":"Experiment to get users to explore page ","criteria":{"type":"user","filters":{"emailVerified":true}},"data":{"startDate":"2021-08-09","endDate":"2020-08-21","key":"/org/profile","client":"portal","modulus":5}}}""")
+      resp = ExperimentAPIService.createRequest("""{"id":"ekstep.analytics.experiment.create","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"expId":"UR1234","name":"USER_ORG","createdBy":"User1","description":"Experiment to get users to explore page ","criteria":{"type":"user","filters":{"emailVerified":true}},"data":{"startDate":"2041-08-09","endDate":"2040-08-21","key":"/org/profile","client":"portal","modulus":5}}}""")
       resp.responseCode should be("CLIENT_ERROR")
       resp.params.errorMsg should be (Map("status" -> "failed", "data.startDate" -> "Date range should not be -ve. Please check your start_date & end_date"))
       

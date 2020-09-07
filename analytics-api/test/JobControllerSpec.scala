@@ -5,9 +5,9 @@ import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.JobController
 import org.ekstep.analytics.api.APIIds
-import org.ekstep.analytics.api.service.JobAPIService.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
+import org.ekstep.analytics.api.service.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil}
+import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil, PostgresDBUtil}
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito._
@@ -31,10 +31,11 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
   private val configurationMock = mock[Configuration]
   private val cacheUtil = mock[CacheUtil]
   private val mockTable = mock[Table[String, String, Integer]];
+  private val postgresUtilMock = mock[PostgresDBUtil]
   when(configurationMock.underlying).thenReturn(mockConfig)
 
 
-  val jobAPIActor = TestActorRef(new JobAPIService() {
+  val jobAPIActor = TestActorRef(new JobAPIService(postgresUtilMock) {
     override def receive: Receive = {
       case DataRequest(request: String, channelId: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())

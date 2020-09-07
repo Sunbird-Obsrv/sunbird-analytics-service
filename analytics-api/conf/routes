@@ -26,9 +26,9 @@ POST /experiment/create controllers.ExperimentController.createExperiment
 GET /experiment/get/:experimentId controllers.ExperimentController.getExperiment(experimentId:String)
 
 # Data Exhaust
-POST /dataset/request/submit controllers.JobController.dataRequest
-GET /dataset/request/read/:clientKey/:requestId controllers.JobController.getJob(clientKey: String, requestId: String)
-GET /dataset/request/list/:clientKey controllers.JobController.getJobList(clientKey: String)
+POST /job/request/submit controllers.JobController.dataRequest
+GET /job/request/read/:tag/:requestId controllers.JobController.getJob(tag: String, requestId: String)
+GET /job/request/list/:tag controllers.JobController.getJobList(tag: String)
 
 GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
 GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: String)

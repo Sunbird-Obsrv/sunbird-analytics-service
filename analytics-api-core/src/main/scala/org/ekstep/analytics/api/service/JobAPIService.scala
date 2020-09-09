@@ -163,7 +163,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val request = job.request_data
     val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
     val downloadUrls = job.download_urls.getOrElse(List[String]()).map{f => storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt)).asInstanceOf[String] }
-    JobResponse(job.request_id, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
+    JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
   }
 
   private def _saveJobRequest(jobConfig: JobConfig): JobRequest = {

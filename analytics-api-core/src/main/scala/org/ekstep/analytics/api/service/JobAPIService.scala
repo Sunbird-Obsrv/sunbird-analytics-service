@@ -25,9 +25,9 @@ import scala.util.Sorting
 
 case class DataRequest(request: String, channel: String, config: Config)
 
-case class GetDataRequest(clientKey: String, requestId: String, config: Config)
+case class GetDataRequest(tag: String, requestId: String, config: Config)
 
-case class DataRequestList(clientKey: String, limit: Int, config: Config)
+case class DataRequestList(tag: String, limit: Int, config: Config)
 
 case class ChannelData(channel: String, event_type: String, from: String, to: String, since: String, config: Config)
 
@@ -37,8 +37,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   def receive = {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config, fc)
-    case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config, fc)
-    case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config, fc)
+    case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
+    case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
     case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
   }
 
@@ -59,10 +59,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     }
   }
 
-  def getDataRequest(clientKey: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
-    val job = postgresDBUtil.getJobRequest(requestId, clientKey)
+  def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
+    val job = postgresDBUtil.getJobRequest(requestId, tag)
     if (job.isEmpty) {
-      CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and client_key", ResponseCode.OK.toString)
+      CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
     } else {
       val jobStatusRes = _createJobResponse(job.get)
       CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
@@ -115,13 +115,14 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config, fc: FrameworkContext): JobRequest = {
     val tag = body.request.tag.getOrElse("")
+    val appendedTag = tag + ":" + channel
     val jobId = body.request.jobId.getOrElse("")
     val requestedBy = body.request.requestedBy.getOrElse("")
     val requestId = _getRequestId(tag, jobId, requestedBy, channel)
     val requestConfig = body.request.jobConfig.getOrElse(Map.empty)
     val encryptionKey = body.request.encryptionKey
-    val job = postgresDBUtil.getJobRequest(requestId, tag)
-    val jobConfig = JobConfig(tag, requestId, jobId, JobStatus.SUBMITTED.toString(), requestConfig, requestedBy, channel, DateTime.now(), encryptionKey)
+    val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
+    val jobConfig = JobConfig(appendedTag, requestId, jobId, JobStatus.SUBMITTED.toString(), requestConfig, requestedBy, channel, DateTime.now(), encryptionKey)
 
     if (job.isEmpty) {
         _saveJobRequest(jobConfig)

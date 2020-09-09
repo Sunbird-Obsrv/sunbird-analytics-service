@@ -42,10 +42,12 @@ class JobController @Inject() (
     }
   }
 
-  def getJob(clientKey: String, requestId: String) = Action.async { request: Request[AnyContent] =>
+  def getJob(tag: String, requestId: String) = Action.async { request: Request[AnyContent] =>
 
+    val channelId = request.headers.get("X-Channel-ID").getOrElse("")
+    val appendedTag = tag + ":" + channelId
     if (authorizeDataExhaustRequest(request)) {
-      val res = ask(jobAPIActor, GetDataRequest(clientKey, requestId, config)).mapTo[Response]
+      val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }
@@ -56,14 +58,15 @@ class JobController @Inject() (
     }
   }
 
-  def getJobList(clientKey: String) = Action.async { request: Request[AnyContent] =>
+  def getJobList(tag: String) = Action.async { request: Request[AnyContent] =>
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val appendedTag = tag + ":" + channelId
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
     if (checkFlag) {
       val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
-      val res = ask(jobAPIActor, DataRequestList(clientKey, limit, config)).mapTo[Response]
+      val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }

@@ -81,18 +81,36 @@ class PostgresDBUtil {
 
     def saveJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.request_data)
-        sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted") values
+        val encryptionKey = jobRequest.encryption_key
+        val query = if (encryptionKey.isEmpty)
+            sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted") values
+                  (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.job_id}, ${jobRequest.status},
+                  CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
+                  ${new Date()})"""
+        else
+            sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted", "encryption_key") values
               (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.job_id}, ${jobRequest.status},
               CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
-              ${new Date()})""".update().apply().toString
+              ${new Date()}, ${encryptionKey.get})"""
+        query.update().apply().toString
     }
 
     def updateJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.request_data)
-        sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
+        val encryptionKey = jobRequest.encryption_key
+        val query = if (encryptionKey.isEmpty)
+            sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
+                  job_id =${jobRequest.job_id}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
+                  requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel}
+                  where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""
+        else
+            sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
               job_id =${jobRequest.job_id}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
-              requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel}
-              where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}""".update().apply().toString
+              requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel},
+              encryption_key =${encryptionKey.get},
+              where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""
+
+        query.update().apply().toString
     }
 
     def checkConnection = {

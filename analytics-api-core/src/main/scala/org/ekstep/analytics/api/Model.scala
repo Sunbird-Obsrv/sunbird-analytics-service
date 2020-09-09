@@ -13,7 +13,7 @@ object Model {
 class BaseMetric(val d_period: Option[Int] = None) extends AnyRef with Serializable
 trait Metrics extends BaseMetric with Serializable
 
-case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], dataset_id: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], jobId: Option[String], jobConfig: Option[Map[String, Any]], requestedBy: Option[String]);
+case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], dataset_id: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], jobId: Option[String], jobConfig: Option[Map[String, Any]], requestedBy: Option[String], encryptionKey: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)
@@ -117,7 +117,7 @@ object APIIds {
 
 case class JobStats(dt_job_submitted: Long, dt_job_completed:  Option[Long] = None, execution_time: Option[Long] = None);
 case class JobResponse(request_id: String, tag: String, job_id: String, requested_by: String, requested_channel: String, status: String, last_updated: Long, request_data: Map[String, Any], attempts: Int, job_stats: Option[JobStats] = None, download_urls: Option[List[String]] = None, expires_at: Option[Long] = None);
-case class JobConfig(tag: String, request_id: String, job_id: String, status: String, request_data: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime)
+case class JobConfig(tag: String, request_id: String, job_id: String, status: String, request_data: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String])
 
 //Experiment
 case class ExperimentRequestBody(id: String, ver: String, ts: String, request: ExperimentCreateRequest, params: Option[Params])

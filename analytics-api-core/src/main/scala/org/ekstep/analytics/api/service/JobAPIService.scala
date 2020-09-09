@@ -9,7 +9,7 @@ import javax.inject.Inject
 import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.util.JobRequest
 import org.ekstep.analytics.api.util._
-import org.ekstep.analytics.api.{APIIds, JobStats, OutputFormat, _}
+import org.ekstep.analytics.api.{APIIds, JobConfig, JobStats, OutputFormat, _}
 import org.ekstep.analytics.framework.util.JSONUtils
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
 import org.joda.time.DateTime
@@ -71,8 +71,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   def getDataRequestList(tag: String, limit: Int)(implicit config: Config, fc: FrameworkContext): Response = {
     val currDate = DateTime.now()
-    val jobRequests = postgresDBUtil.getJobRequestList(tag)
-    val result = jobRequests.take(limit).map { x => _createJobResponse(x) }
+    val jobRequests = postgresDBUtil.getJobRequestList(tag, limit)
+    val result = jobRequests.map { x => _createJobResponse(x) }
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
   }
 
@@ -118,11 +118,14 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val jobId = body.request.jobId.getOrElse("")
     val requestedBy = body.request.requestedBy.getOrElse("")
     val requestId = _getRequestId(tag, jobId, requestedBy, channel)
-    val jobConfig = body.request.jobConfig.getOrElse(Map.empty)
+    val requestConfig = body.request.jobConfig.getOrElse(Map.empty)
     val job = postgresDBUtil.getJobRequest(requestId, tag)
+    val jobConfig = JobConfig(tag, requestId, jobId, JobStatus.SUBMITTED.toString(), requestConfig, requestedBy, channel, DateTime.now())
 
     if (job.isEmpty) {
-      _saveJobRequest(requestId, tag, jobId, requestedBy, channel, jobConfig)
+        _saveJobRequest(jobConfig)
+    } else if (job.get.status.equalsIgnoreCase(JobStatus.COMPLETED.toString)) {
+        _updateJobRequest(jobConfig)
     } else {
       job.get
     }
@@ -163,13 +166,15 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     JobResponse(job.request_id, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
   }
 
-  private def _saveJobRequest(requestId: String, tag: String, jobId: String, requestedBy: String, requestedChannel: String, request: Map[String, Any]): JobRequest = {
-    val status = JobStatus.SUBMITTED.toString()
-    val jobSubmitted = DateTime.now()
-    val jobConfig = JobConfig(tag, requestId, jobId, status, request, requestedBy, requestedChannel, jobSubmitted)
+  private def _saveJobRequest(jobConfig: JobConfig): JobRequest = {
     postgresDBUtil.saveJobRequest(jobConfig)
-    postgresDBUtil.getJobRequest(requestId, tag).get
+    postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
   }
+
+  private def _updateJobRequest(jobConfig: JobConfig): JobRequest = {
+      postgresDBUtil.updateJobRequest(jobConfig)
+      postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
+   }
 
   private def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String): String = {
     val key = Array(tag, jobId, requestedBy, requestedChannel).mkString("|")

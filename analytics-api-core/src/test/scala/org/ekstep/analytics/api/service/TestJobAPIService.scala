@@ -68,14 +68,17 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
     doNothing().when(mockStorageService).closeContext()
 
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
-    val response = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
-    response.responseCode should be("OK")
-    val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(response.result.get))
+    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-1", "462CDD1241226D5CA2E777DA522691EF")
+    res.responseCode should be("OK")
+    val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res.result.get))
     responseData.download_urls.get.size should be(2)
+    responseData.status should be("COMPLETED")
 
-    val getResponse = jobApiServiceActorRef.underlyingActor.getDataRequest("client-1", "462CDD1241226D5CA2E777DA522691EF")
-    getResponse.responseCode should be("OK")
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
+    res1.responseCode should be("OK")
+    val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
+    responseData1.status should be("SUBMITTED")
   }
 
 
@@ -144,6 +147,32 @@ class TestJobAPIService extends BaseSpec  {
     val res1 = jobApiServiceActorRef.underlyingActor.getDataRequestList("testKey", 10)
     val resultMap1 = res1.result.get.asInstanceOf[Map[String, AnyRef]]
     resultMap1.get("count").get.asInstanceOf[Int] should be(0)
+  }
+
+  it should "re-submit job if it is already completed" in {
+
+    EmbeddedPostgresql.execute(
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-3', '17CB7C4AC4202ABC0605407058EE0504', 'assessment-score-report',
+        'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10');""")
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
+    doNothing().when(mockStorageService).closeContext()
+
+    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-3", "17CB7C4AC4202ABC0605407058EE0504")
+    res.responseCode should be("OK")
+    val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res.result.get))
+    responseData.download_urls.get.size should be(2)
+    responseData.status should be("COMPLETED")
+
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
+    res1.responseCode should be("OK")
+    val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
+    responseData1.status should be("SUBMITTED")
   }
 
   "JobAPIService" should "return different request id for same tag having different requested channel" in {
@@ -322,7 +351,7 @@ class TestJobAPIService extends BaseSpec  {
     result = Await.result((jobApiServiceActorRef ? GetDataRequest("test-tag-1", "14621312DB7F8ED99BA1B16D8B430FAC", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("OK")
 
-    result = Await.result((jobApiServiceActorRef ? DataRequestList("client-3", 2, config)).mapTo[Response], 20.seconds)
+    result = Await.result((jobApiServiceActorRef ? DataRequestList("client-4", 2, config)).mapTo[Response], 20.seconds)
     val resultMap = result.result.get
     val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
     jobRes.length should be(0)

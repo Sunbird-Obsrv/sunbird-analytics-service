@@ -75,8 +75,8 @@ class PostgresDBUtil {
         sql"""select * from ${JobRequest.table} where request_id = $requestId and tag = $tag""".map(rs => JobRequest(rs)).first().apply()
     }
 
-    def getJobRequestList(tag: String): List[JobRequest] = {
-        sql"""select * from ${JobRequest.table} where tag = $tag""".map(rs => JobRequest(rs)).list().apply()
+    def getJobRequestList(tag: String, limit: Int): List[JobRequest] = {
+        sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
     }
 
     def saveJobRequest(jobRequest: JobConfig) = {
@@ -85,6 +85,14 @@ class PostgresDBUtil {
               (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.job_id}, ${jobRequest.status},
               CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
               ${new Date()})""".update().apply().toString
+    }
+
+    def updateJobRequest(jobRequest: JobConfig) = {
+        val requestData = JSONUtils.serialize(jobRequest.request_data)
+        sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
+              job_id =${jobRequest.job_id}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
+              requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel}
+              where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}""".update().apply().toString
     }
 
     def checkConnection = {

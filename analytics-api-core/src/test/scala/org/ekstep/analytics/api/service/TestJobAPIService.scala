@@ -158,6 +158,12 @@ class TestJobAPIService extends BaseSpec  {
         'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10');""")
 
+    EmbeddedPostgresql.execute(
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-3', 'C5A633CED379CAEF0BD339E3F0EE80E0', 'assessment-score-report',
+        'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-2', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10');""")
+
     reset(mockStorageService)
     when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
     when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
@@ -169,11 +175,20 @@ class TestJobAPIService extends BaseSpec  {
     responseData.download_urls.get.size should be(2)
     responseData.status should be("COMPLETED")
 
+    // without encryption key
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
     val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
     res1.responseCode should be("OK")
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
     responseData1.status should be("SUBMITTED")
+
+    // with encryption key
+    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-2","jobId":"assessment-score-report","encryptionKey":"xxxxx","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val res2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "in.ekstep")
+    res2.responseCode should be("OK")
+    val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
+    responseData2.status should be("SUBMITTED")
+
   }
 
   "JobAPIService" should "return different request id for same tag having different requested channel" in {

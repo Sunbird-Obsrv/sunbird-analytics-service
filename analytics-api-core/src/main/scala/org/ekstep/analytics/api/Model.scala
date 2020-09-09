@@ -13,12 +13,8 @@ object Model {
 class BaseMetric(val d_period: Option[Int] = None) extends AnyRef with Serializable
 trait Metrics extends BaseMetric with Serializable
 
-case class Filter(partner_id: Option[String] = None, group_user: Option[Boolean] = None, content_id: Option[String] = None, tag: Option[String] = None, tags: Option[Array[String]] = None, start_date: Option[String] = None, end_date: Option[String] = None, events: Option[Array[String]] = None, app_id: Option[String] = Option(""), channel: Option[String] = Option(""), user_id: Option[String] = None, device_id: Option[String] = None, metrics_type: Option[String] = None, mode: Option[String] = None)
-case class Trend(day: Option[Int], week: Option[Int], month: Option[Int])
 case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], dataset_id: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], jobId: Option[String], jobConfig: Option[Map[String, Any]], requestedBy: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
-case class MetricsRequest(period: String, filter: Option[Filter], channel: Option[String] = None, rawQuery: Option[Map[String, AnyRef]], dialcodes: Option[List[String]] = None);
-case class MetricsRequestBody(id: String, ver: String, ts: String, request: MetricsRequest, param: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)
 case class ItemMetrics(m_item_id: String, m_total_ts: Double, m_total_count: Integer, m_correct_res_count: Integer, m_inc_res_count: Integer, m_top5_incorrect_res: Array[String], m_avg_ts: Double)

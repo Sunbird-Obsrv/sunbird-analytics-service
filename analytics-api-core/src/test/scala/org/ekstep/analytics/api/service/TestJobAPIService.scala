@@ -55,13 +55,13 @@ class TestJobAPIService extends BaseSpec  {
       response.responseCode should be("OK")
   }
 
-  "JobAPIService" should "return response for data request which is completed when submitted request for already completed job" in {
+  "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {
 
     EmbeddedPostgresql.execute(
       s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
-        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-1', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
-        'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
-        'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10');""")
+        "requested_channel", "dt_job_submitted") values ('client-1', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
+        'SUBMITTED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30');""")
 
     reset(mockStorageService)
     when(mockFc.getStorageService(ArgumentMatchers.any())).thenReturn(mockStorageService);
@@ -71,8 +71,7 @@ class TestJobAPIService extends BaseSpec  {
     val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-1", "462CDD1241226D5CA2E777DA522691EF")
     res.responseCode should be("OK")
     val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res.result.get))
-    responseData.download_urls.get.size should be(2)
-    responseData.status should be("COMPLETED")
+    responseData.status should be("SUBMITTED")
 
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","jobId":"assessment-score-report","jobConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
     val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")

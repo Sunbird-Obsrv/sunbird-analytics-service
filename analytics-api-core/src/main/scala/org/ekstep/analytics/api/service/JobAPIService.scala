@@ -5,9 +5,11 @@ import java.util.Calendar
 
 import akka.actor.Actor
 import com.typesafe.config.Config
+import javax.inject.Inject
 import org.apache.commons.lang3.StringUtils
-import org.ekstep.analytics.api.util.{APILogger, CommonUtil, CassandraUtil}
-import org.ekstep.analytics.api.{APIIds, JobStats, OutputFormat, _}
+import org.ekstep.analytics.api.util.JobRequest
+import org.ekstep.analytics.api.util._
+import org.ekstep.analytics.api.{APIIds, JobConfig, JobStats, OutputFormat, _}
 import org.ekstep.analytics.framework.util.JSONUtils
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
 import org.joda.time.DateTime
@@ -20,22 +22,32 @@ import scala.util.Sorting
   * @author mahesh
   */
 
-// TODO: Need to refactor the entire Service.
-object JobAPIService {
-  
+
+case class DataRequest(request: String, channel: String, config: Config)
+
+case class GetDataRequest(tag: String, requestId: String, config: Config)
+
+case class DataRequestList(tag: String, limit: Int, config: Config)
+
+case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
+
+class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
+
+  implicit val fc = new FrameworkContext();
+
+  def receive = {
+    case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config, fc)
+    case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
+    case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
+  }
+
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
 
-  case class DataRequest(request: String, channel: String, config: Config)
-
-  case class GetDataRequest(clientKey: String, requestId: String, config: Config)
-
-  case class DataRequestList(clientKey: String, limit: Int, config: Config)
-
-  case class ChannelData(channel: String, event_type: String, from: String, to: String, since: String, config: Config)
 
   val storageType = AppConf.getStorageType()
 
-  def dataRequest(request: String, channel: String)(implicit config: Config): Response = {
+  def dataRequest(request: String, channel: String)(implicit config: Config, fc: FrameworkContext): Response = {
     val body = JSONUtils.deserialize[RequestBody](request)
     val isValid = _validateReq(body)
     if ("true".equals(isValid.get("status").get)) {
@@ -47,22 +59,21 @@ object JobAPIService {
     }
   }
 
-  def getDataRequest(clientKey: String, requestId: String)(implicit config: Config): Response = {
-    val job = CassandraUtil.getJobRequest(requestId, clientKey)
-    if (null == job) {
-      CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and client_key", ResponseCode.OK.toString)
+  def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
+    val job = postgresDBUtil.getJobRequest(requestId, tag)
+    if (job.isEmpty) {
+      CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
     } else {
-      val jobStatusRes = _createJobResponse(job)
+      val jobStatusRes = _createJobResponse(job.get)
       CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
     }
   }
 
-  def getDataRequestList(clientKey: String, limit: Int)(implicit config: Config): Response = {
+  def getDataRequestList(tag: String, limit: Int)(implicit config: Config, fc: FrameworkContext): Response = {
     val currDate = DateTime.now()
-    val jobRequests = CassandraUtil.getJobRequestList(clientKey)
-    val jobs = jobRequests.filter { f => f.dt_expiration.getOrElse(currDate).getMillis >= currDate.getMillis }
-    val result = jobs.take(limit).map { x => _createJobResponse(x) }
-    CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobs.size), "jobs" -> result))
+    val jobRequests = postgresDBUtil.getJobRequestList(tag, limit)
+    val result = jobRequests.map { x => _createJobResponse(x) }
+    CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
   }
 
   def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
@@ -102,100 +113,73 @@ object JobAPIService {
     }
   }
 
-  private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config): JobRequest = {
-    val outputFormat = body.request.output_format.getOrElse(config.getString("data_exhaust.output_format"))
-    val datasetId = body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default"))
-    val requestId = _getRequestId(body.request.filter.get, outputFormat, datasetId, body.params.get.client_key.get)
-    val job = CassandraUtil.getJobRequest(requestId, body.params.get.client_key.get)
-    val usrReq = body.request
-    val useFilter = usrReq.filter.get
-    val filter = Filter(None, None, None, useFilter.tag, useFilter.tags, useFilter.start_date, useFilter.end_date, useFilter.events, useFilter.app_id, Option(channel))
-    val request = Request(Option(filter), usrReq.summaries, usrReq.trend, usrReq.context, usrReq.query, usrReq.filters, usrReq.config, usrReq.limit, Option(outputFormat), Option(datasetId))
+  private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config, fc: FrameworkContext): JobRequest = {
+    val tag = body.request.tag.getOrElse("")
+    val appendedTag = tag + ":" + channel
+    val jobId = body.request.jobId.getOrElse("")
+    val requestedBy = body.request.requestedBy.getOrElse("")
+    val requestId = _getRequestId(tag, jobId, requestedBy, channel)
+    val requestConfig = body.request.jobConfig.getOrElse(Map.empty)
+    val encryptionKey = body.request.encryptionKey
+    val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
+    val jobConfig = JobConfig(appendedTag, requestId, jobId, JobStatus.SUBMITTED.toString(), requestConfig, requestedBy, channel, DateTime.now(), encryptionKey)
 
-    if (null == job) {
-      _saveJobRequest(requestId, body.params.get.client_key.get, request)
+    if (job.isEmpty) {
+        _saveJobRequest(jobConfig)
+    } else if (job.get.status.equalsIgnoreCase(JobStatus.COMPLETED.toString)) {
+        _updateJobRequest(jobConfig)
     } else {
-      if (StringUtils.equalsIgnoreCase(JobStatus.FAILED.toString(), job.status.get)) {
-        val retryLimit = config.getInt("data_exhaust.retry.limit")
-        val attempts = job.iteration.getOrElse(0)
-        if (attempts < retryLimit) _saveJobRequest(requestId, body.params.get.client_key.get, request, attempts) else job
-      } else job
+      job.get
     }
   }
 
   private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    val params = body.params
-    val filter = body.request.filter
     val outputFormat = body.request.output_format.getOrElse(OutputFormat.JSON)
-    if (filter.isEmpty || params.isEmpty) {
-      val message = if (filter.isEmpty) "filter is empty" else "params is empty"
-      Map("status" -> "false", "message" -> message)
-    } else {
-      val datasetList = config.getStringList("data_exhaust.dataset.list")
-      if (outputFormat != null && !outputFormat.isEmpty && !(outputFormat.equals(OutputFormat.CSV) || outputFormat.equals(OutputFormat.JSON))) {
+    if (outputFormat != null && !outputFormat.isEmpty && !(outputFormat.equals(OutputFormat.CSV) || outputFormat.equals(OutputFormat.JSON))) {
         Map("status" -> "false", "message" -> "invalid type. It should be one of [csv, json].")
-      } else if (outputFormat != null && outputFormat.equals(OutputFormat.CSV) && (filter.get.events.isEmpty || !filter.get.events.get.length.equals(1))) {
-        Map("status" -> "false", "message" -> "events should contains only one event.")
-      } else if (filter.get.start_date.isEmpty || filter.get.end_date.isEmpty || params.get.client_key.isEmpty) {
-        val message = if (params.get.client_key.isEmpty) "client_key is empty" else "start date or end date is empty"
-        Map("status" -> "false", "message" -> message)
-      } else if (filter.get.tags.isEmpty || 0 == filter.get.tags.get.length) {
-        Map("status" -> "false", "message" -> "tags are empty")
-      } else if (!datasetList.contains(body.request.dataset_id.getOrElse(config.getString("data_exhaust.dataset.default")))) {
-        val message = "invalid dataset_id. It should be one of " + datasetList
-        Map("status" -> "false", "message" -> message)
-      } else {
-        val endDate = filter.get.end_date.get
-        val startDate = filter.get.start_date.get
-        val days = CommonUtil.getDaysBetween(startDate, endDate)
-        println("CommonUtil.getPeriod(CommonUtil.getToday)", CommonUtil.getPeriod(CommonUtil.getToday))
-        if (CommonUtil.getPeriod(endDate) >= CommonUtil.getPeriod(CommonUtil.getToday))
-          Map("status" -> "false", "message" -> "end_date should be lesser than today's date..")
-        else if (0 > days)
-          Map("status" -> "false", "message" -> "Date range should not be -ve. Please check your start_date & end_date")
-        else if (30 < days)
-          Map("status" -> "false", "message" -> "Date range should be < 30 days")
-        else Map("status" -> "true")
-      }
+    } else if (body.request.tag.isEmpty) {
+        Map("status" -> "false", "message" -> "tag is empty")
+    } else if (body.request.jobId.isEmpty) {
+      Map("status" -> "false", "message" -> "jobId is empty")
+    } else {
+       Map("status" -> "true")
     }
   }
 
-  private def getDateInMillis(date: DateTime): Option[Long] = {
-    if (null != date) Option(date.getMillis) else None
-  }
+  private def _createJobResponse(job: JobRequest)(implicit config: Config, fc: FrameworkContext): JobResponse = {
+    val storageService = fc.getStorageService(storageType)
 
-  private def _createJobResponse(job: JobRequest): JobResponse = {
-    val processed = List(JobStatus.COMPLETED.toString(), JobStatus.FAILED.toString).contains(job.status.get)
-    val created = if (job.dt_file_created.isEmpty) "" else job.dt_file_created.get.getMillis.toString
-    val output = if (processed) {
-      val dfe = getDateInMillis(job.dt_first_event.getOrElse(null))
-      val dle = getDateInMillis(job.dt_last_event.getOrElse(null))
-      val de = getDateInMillis(job.dt_expiration.getOrElse(null))
-      Option(JobOutput(job.location, job.file_size, Option(created), dfe, dle, de))
-    } else Option(JobOutput())
+    val expiry = config.getInt("channel.data_exhaust.expiryMins")
+    val bucket = config.getString("data_exhaust.bucket")
+    val calendar = Calendar.getInstance()
+    calendar.add(Calendar.MINUTE, expiry)
+    val expiryTime = calendar.getTime.getTime
+    val expiryTimeInSeconds = expiryTime / 1000
 
-    val djp = getDateInMillis(job.dt_job_processing.getOrElse(null))
-    val djc = getDateInMillis(job.dt_job_completed.getOrElse(null))
+    val processed = List(JobStatus.COMPLETED.toString(), JobStatus.FAILED.toString).contains(job.status)
+    val djs = job.dt_job_submitted
+    val djc = job.dt_job_completed
     val stats = if (processed) {
-      Option(JobStats(job.dt_job_submitted.get.getMillis, djp, djc, Option(job.input_events.getOrElse(0)), Option(job.output_events.getOrElse(0)), Option(job.latency.getOrElse(0)), Option(job.execution_time.getOrElse(0L))))
-    } else Option(JobStats(job.dt_job_submitted.get.getMillis))
-    val request = JSONUtils.deserialize[Request](job.request_data.getOrElse("{}"))
-    val lastupdated = djc.getOrElse(djp.getOrElse(job.dt_job_submitted.get.getMillis))
-    JobResponse(job.request_id.get, job.status.get, lastupdated, request, job.iteration.getOrElse(0), output, stats)
+      Option(JobStats(job.dt_job_submitted, djc, job.execution_time))
+    } else Option(JobStats(job.dt_job_submitted))
+    val request = job.request_data
+    val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
+    val downloadUrls = job.download_urls.getOrElse(List[String]()).map{f => storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt)).asInstanceOf[String] }
+    JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
   }
 
-  private def _saveJobRequest(requestId: String, clientKey: String, request: Request, iteration: Int = 0): JobRequest = {
-    val status = JobStatus.SUBMITTED.toString()
-    val jobSubmitted = DateTime.now()
-    val jobRequest = JobRequest(Option(clientKey), Option(requestId), None, Option(status), Option(JSONUtils.serialize(request)), Option(iteration), Option(jobSubmitted), None, None, None, None, None, None, None, None, None, None, None, None, None, None, None, Option("DATA_EXHAUST"))
-    CassandraUtil.saveJobRequest(Array(jobRequest))
-    jobRequest
+  private def _saveJobRequest(jobConfig: JobConfig): JobRequest = {
+    postgresDBUtil.saveJobRequest(jobConfig)
+    postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
   }
 
-  private def _getRequestId(filter: Filter, outputFormat: String, datasetId: String, clientKey: String): String = {
-    Sorting.quickSort(filter.tags.get)
-    Sorting.quickSort(filter.events.getOrElse(Array()))
-    val key = Array(filter.start_date.get, filter.end_date.get, filter.tags.getOrElse(Array()).mkString, filter.events.getOrElse(Array()).mkString, filter.app_id.getOrElse(""), filter.channel.getOrElse(""), outputFormat, datasetId, clientKey).mkString("|")
+  private def _updateJobRequest(jobConfig: JobConfig): JobRequest = {
+      postgresDBUtil.updateJobRequest(jobConfig)
+      postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
+   }
+
+  private def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String): String = {
+    val key = Array(tag, jobId, requestedBy, requestedChannel).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString
   }
   private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
@@ -210,19 +194,4 @@ object JobAPIService {
       return Map("status" -> "false", "message" -> "Date range should be < 10 days")
     else return Map("status" -> "true")
   }
-}
-
-class JobAPIService extends Actor {
-
-  import JobAPIService._
-
-  implicit val fc = new FrameworkContext();
-
-  def receive = {
-    case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config)
-    case GetDataRequest(clientKey: String, requestId: String, config: Config) => sender() ! getDataRequest(clientKey, requestId)(config)
-    case DataRequestList(clientKey: String, limit: Int, config: Config) => sender() ! getDataRequestList(clientKey, limit)(config)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
-  }
-
 }

@@ -104,6 +104,12 @@
 			<version>${akka.version}</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_${scala.maj.version}</artifactId>
+			<version>3.0.6</version>
+			<scope>test</scope>
+		</dependency>
 
 
 		<!-- required for IntegrationSpec -->

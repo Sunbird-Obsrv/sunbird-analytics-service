@@ -29,7 +29,7 @@ case class GetDataRequest(tag: String, requestId: String, config: Config)
 
 case class DataRequestList(tag: String, limit: Int, config: Config)
 
-case class ChannelData(channel: String, event_type: String, from: String, to: String, since: String, config: Config)
+case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
 
 class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 

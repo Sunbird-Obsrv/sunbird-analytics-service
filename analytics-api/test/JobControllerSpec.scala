@@ -67,10 +67,10 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
     result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")))
     Helpers.status(result) should be (Helpers.FORBIDDEN)
-    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID and X-Channel-ID are not authorized"""") should not be (-1)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
     result = controller.getJob("client1", "request1").apply(FakeRequest())
-    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
 
     reset(cacheUtil);
@@ -95,7 +95,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
     result = controller.dataRequest().apply(FakeRequest().withJsonBody(Json.parse("""{}""")))
-    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
 
     reset(mockConfig);
@@ -117,7 +117,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
     result = controller.getJobList("testClientKey").apply(FakeRequest());
-    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
 
     reset(mockConfig);
@@ -135,13 +135,13 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
 
-    var result = controller.getTelemetry("testDataSet").apply(FakeRequest());
+    var result = controller.getTelemetry("testDataSet").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.FORBIDDEN)
-    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='' are not authorized"""") should not be (-1)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
-    result = controller.getTelemetry("raw").apply(FakeRequest());
+    result = controller.getTelemetry("raw").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.OK)
   }
 
@@ -153,9 +153,9 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
 
-    var result = controller.getTelemetry("summary-rollup").apply(FakeRequest());
+    var result = controller.getTelemetry("summary-rollup").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.FORBIDDEN)
-    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='' are not authorized"""") should not be (-1)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
@@ -167,7 +167,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
-    result = controller.getTelemetry("summary-rollup").apply(FakeRequest());
+    result = controller.getTelemetry("summary-rollup").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.OK)
     
   }

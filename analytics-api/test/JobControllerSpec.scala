@@ -59,22 +59,26 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(1)
-    var result = controller.getJob("client1", "request1").apply(FakeRequest())
+    var result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")))
     Helpers.status(result) should be (Helpers.OK)
 
     reset(cacheUtil);
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
-    result = controller.getJob("client1", "request1").apply(FakeRequest())
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")))
     Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID and X-Channel-ID are not authorized"""") should not be (-1)
+
+    result = controller.getJob("client1", "request1").apply(FakeRequest())
+    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
 
     reset(cacheUtil);
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
-    result = controller.getJob("client1", "request1").apply(FakeRequest())
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")))
     Helpers.status(result) should be (Helpers.OK)
   }
 
@@ -90,6 +94,10 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
 
+    result = controller.dataRequest().apply(FakeRequest().withJsonBody(Json.parse("""{}""")))
+    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
+
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
     result = controller.dataRequest().apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withJsonBody(Json.parse("""{}""")))
@@ -104,15 +112,18 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
-    var result = controller.getJobList("testClientKey").apply(FakeRequest());
+    var result = controller.getJobList("testClientKey").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.FORBIDDEN)
-    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='' are not authorized"""") should not be (-1)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"Given X-Consumer-ID='' and X-Channel-ID='testChannel' are not authorized"""") should not be (-1)
+
+    result = controller.getJobList("testClientKey").apply(FakeRequest());
+    Helpers.status(result) should be (Helpers.BAD_REQUEST)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"X-Channel-ID is missing in request header"""") should not be (-1)
 
     reset(mockConfig);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
     when(mockConfig.getString("data_exhaust.list.limit")).thenReturn("10");
-
-    result = controller.getJobList("testClientKey").apply(FakeRequest());
+    result = controller.getJobList("testClientKey").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.OK)
   }
 

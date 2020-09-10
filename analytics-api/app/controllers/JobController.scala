@@ -29,32 +29,46 @@ class JobController @Inject() (
     val body: String = Json.stringify(request.body.asJson.get)
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    if (checkFlag) {
-      val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
-      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      unauthorized(msg)
+    if (channelId.nonEmpty) {
+        val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
+        if (checkFlag) {
+            val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
+            res.map { x =>
+                result(x.responseCode, JSONUtils.serialize(x))
+            }
+        } else {
+            val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
+            APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
+            unauthorized(msg)
+        }
+    }
+    else {
+        val msg = "X-Channel-ID is missing in request header"
+        APILogger.log("X-Channel-ID is missing in request header")
+        invalid(msg, APIIds.DATA_REQUEST)
     }
   }
 
   def getJob(tag: String, requestId: String) = Action.async { request: Request[AnyContent] =>
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    val appendedTag = tag + ":" + channelId
-    if (authorizeDataExhaustRequest(request)) {
-      val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = "Given X-Consumer-ID and X-Channel-ID are not authorized"
-      APILogger.log("Authorization FAILED")
-      unauthorized(msg)
+    if (channelId.nonEmpty) {
+          val appendedTag = tag + ":" + channelId
+          if (authorizeDataExhaustRequest(request)) {
+              val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, config)).mapTo[Response]
+              res.map { x =>
+                  result(x.responseCode, JSONUtils.serialize(x))
+              }
+          } else {
+              val msg = "Given X-Consumer-ID and X-Channel-ID are not authorized"
+              APILogger.log("Authorization FAILED")
+              unauthorized(msg)
+          }
+    }
+    else {
+          val msg = "X-Channel-ID is missing in request header"
+          APILogger.log("X-Channel-ID is missing in request header")
+          invalid(msg, APIIds.DATA_REQUEST)
     }
   }
 
@@ -62,18 +76,25 @@ class JobController @Inject() (
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val appendedTag = tag + ":" + channelId
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    if (checkFlag) {
-      val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
-      val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
-      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      unauthorized(msg)
+    if (channelId.nonEmpty) {
+        val appendedTag = tag + ":" + channelId
+        val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
+        if (checkFlag) {
+            val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
+            val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, config)).mapTo[Response]
+            res.map { x =>
+                result(x.responseCode, JSONUtils.serialize(x))
+            }
+        } else {
+            val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
+            APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
+            unauthorized(msg)
+        }
+    }
+    else {
+        val msg = "X-Channel-ID is missing in request header"
+        APILogger.log("X-Channel-ID is missing in request header")
+        invalid(msg, APIIds.DATA_REQUEST)
     }
   }
 
@@ -104,6 +125,14 @@ class JobController @Inject() (
     Future {
       result(res.responseCode, JSONUtils.serialize(res))
     }
+  }
+
+  private def invalid(msg: String, apiId: String): Future[Result] = {
+     val res = CommonUtil.errorResponse(apiId, msg, ResponseCode.CLIENT_ERROR.toString)
+     println("response: " + res)
+     Future {
+        result(res.responseCode, JSONUtils.serialize(res))
+     }
   }
 
   def refreshCache(cacheType: String) = Action { implicit request =>

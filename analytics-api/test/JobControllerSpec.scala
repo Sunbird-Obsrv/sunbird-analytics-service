@@ -7,7 +7,7 @@ import controllers.JobController
 import org.ekstep.analytics.api.APIIds
 import org.ekstep.analytics.api.service.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil, PostgresDBUtil}
+import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil, JSONUtils, PostgresDBUtil}
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito._
@@ -17,7 +17,7 @@ import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.test.{FakeRequest, Helpers}
-
+import scala.collection.JavaConversions._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import com.google.common.collect.Table
@@ -32,6 +32,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
   private val cacheUtil = mock[CacheUtil]
   private val mockTable = mock[Table[String, String, Integer]];
   private val postgresUtilMock = mock[PostgresDBUtil]
+  private val restUtilMock = mock[APIRestUtil]
   when(configurationMock.underlying).thenReturn(mockConfig)
 
 
@@ -52,7 +53,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     }
   })
 
-  val controller = new JobController(jobAPIActor, system, configurationMock, Helpers.stubControllerComponents(), cacheUtil)
+  val controller = new JobController(jobAPIActor, system, configurationMock, Helpers.stubControllerComponents(), cacheUtil, restUtilMock)
 
   "JobController" should "test get job API " in {
 
@@ -80,6 +81,34 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
     result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")))
     Helpers.status(result) should be (Helpers.OK)
+
+    // check for user-token: success case
+    reset(cacheUtil);
+    reset(mockConfig);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
+    when(mockConfig.getString("user.profile.url")).thenReturn("https://dev.sunbirded.org/api/user/v2/read/");
+    when(mockConfig.getStringList("standard.dataexhaust.roles")).thenReturn(List("ORG_ADMIN","REPORT_ADMIN"));
+    when(mockConfig.getStringList("ondemand.dataexhaust.roles")).thenReturn(List("ORG_ADMIN","REPORT_ADMIN","COURSE_ADMIN"));
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
+    val response1 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["REPORT_ADMIN"],"channel":"testChannel","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response1))
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.OK)
+
+    // Failure cases: user without admin access
+    val response2 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["PUBLIC"],"channel":"testChannel","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response2))
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"User without admin role is not authorized"""") should not be (-1)
+
+    // Failure cases: user with invalid channel access
+    val response3 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["REPORT_ADMIN"],"channel":"channel-1","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response3))
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"User with incorrect channel is not authorized"""") should not be (-1)
   }
 
   it should "test data request API" in {
@@ -143,6 +172,38 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
     result = controller.getTelemetry("raw").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.OK)
+
+    // check for user-token: success case
+    reset(cacheUtil);
+    reset(mockConfig);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(true);
+    when(mockConfig.getString("user.profile.url")).thenReturn("https://dev.sunbirded.org/api/user/v2/read/");
+    when(mockConfig.getString("org.search.url")).thenReturn("https://dev.sunbirded.org/api/org/v1/search");
+    when(mockConfig.getStringList("standard.dataexhaust.roles")).thenReturn(List("ORG_ADMIN","REPORT_ADMIN"));
+    when(mockConfig.getStringList("ondemand.dataexhaust.roles")).thenReturn(List("ORG_ADMIN","REPORT_ADMIN","COURSE_ADMIN"));
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
+    val response1 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["REPORT_ADMIN"],"channel":"channel-mhrd","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response1))
+    val orgRequest = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    when(restUtilMock.post[Map[String,AnyRef]]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-mhrd\"}]}}}"))
+    result = controller.getTelemetry("raw").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.OK)
+
+    // Failure cases: user without admin access
+    val response2 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["PUBLIC"],"channel":"testChannel","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response2))
+    result = controller.getTelemetry("raw").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"User without admin role is not authorized"""") should not be (-1)
+
+    // Failure cases: userChannel not matching MHRD tenant
+    val response3 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["REPORT_ADMIN"],"channel":"channel-1","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PUBLIC"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"0126796199493140480","communityId":null,"isApproved":null,"email":null,"slug":"custodian","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Map[String,AnyRef]]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Map[String, AnyRef]](response3))
+    result = controller.getTelemetry("raw").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("X-User-ID", "testUser")).withHeaders(("x-authenticated-user-token", "testUserToken")))
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"User without super admin access is not authorized"""") should not be (-1)
+
   }
 
   it should "test get telemetry API - summary rollup data" in {

@@ -5,12 +5,12 @@ import java.util.Calendar
 
 import akka.actor.Actor
 import com.typesafe.config.Config
-import javax.inject.Inject
+import javax.inject.{Inject, Singleton}
 import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.util.JobRequest
 import org.ekstep.analytics.api.util._
 import org.ekstep.analytics.api.{APIIds, JobConfig, JobStats, OutputFormat, _}
-import org.ekstep.analytics.framework.util.JSONUtils
+import org.ekstep.analytics.framework.util.{HTTPClient, JSONUtils, RestUtil}
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
 import org.joda.time.DateTime
 import org.sunbird.cloud.storage.conf.AppConf
@@ -193,5 +193,17 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     else if (10 < days)
       return Map("status" -> "false", "message" -> "Date range should be < 10 days")
     else return Map("status" -> "true")
+  }
+}
+
+
+@Singleton
+class APIRestUtil {
+  def get[T](apiURL: String, headers: Option[Map[String,String]] = None, restUtil: HTTPClient = RestUtil)(implicit mf: Manifest[T]): T = {
+    restUtil.get[T](apiURL, headers)
+  }
+
+  def post[T](apiURL: String, body: String, headers: Option[Map[String,String]] = None, restUtil: HTTPClient = RestUtil)(implicit mf: Manifest[T]): T = {
+    restUtil.post[T](apiURL, body, headers)
   }
 }

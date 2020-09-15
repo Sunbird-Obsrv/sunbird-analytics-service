@@ -7,7 +7,7 @@ import controllers.JobController
 import org.ekstep.analytics.api.APIIds
 import org.ekstep.analytics.api.service.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{CacheUtil, CommonUtil, JSONUtils, PostgresDBUtil}
+import org.ekstep.analytics.api.util._
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito._

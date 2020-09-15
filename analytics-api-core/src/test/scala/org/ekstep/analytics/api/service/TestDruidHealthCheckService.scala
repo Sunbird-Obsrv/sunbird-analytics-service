@@ -5,6 +5,7 @@ import akka.pattern.ask
 import akka.testkit.TestActorRef
 import akka.util.Timeout
 import com.typesafe.config.ConfigFactory
+import org.ekstep.analytics.api.util.APIRestUtil
 import org.ekstep.analytics.framework.conf.AppConf
 import org.ekstep.analytics.framework.util.HTTPClient
 import org.mockito.Mockito._
@@ -29,7 +30,7 @@ class TestDruidHealthCheckAPIService extends FlatSpec with Matchers with BeforeA
 
   "DruidHealthCheckService" should "return health status of druid datasources" in {
 
-    val HTTPClientMock = mock[APIServiceRestUtil]
+    val HTTPClientMock = mock[APIRestUtil]
     implicit val actorSystem = ActorSystem("testActorSystem", config)
     implicit val executor = scala.concurrent.ExecutionContext.global
 
@@ -47,13 +48,5 @@ class TestDruidHealthCheckAPIService extends FlatSpec with Matchers with BeforeA
     response2.map { data =>
       data should be("")
     }
-  }
-  "APIServiceRestUtil" should "should return the response" in {
-    val HTTPClientMock = mock[HTTPClient]
-    val apiURL = AppConf.getConfig("druid.coordinator.host") + AppConf.getConfig("druid.healthcheck.url")
-    when(HTTPClientMock.get[String](apiURL)).thenReturn("SUCCESS")
-    val apiUtil = new APIServiceRestUtil()
-    val response = apiUtil.get[String](apiURL, HTTPClientMock)
-    response should be("SUCCESS")
   }
 }

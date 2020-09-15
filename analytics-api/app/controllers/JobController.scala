@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.routing.FromConfig
 import javax.inject.{Inject, Named}
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{APILogger, CacheUtil, CommonUtil, JSONUtils}
+import org.ekstep.analytics.api.util._
 import org.ekstep.analytics.api.{APIIds, ResponseCode, _}
 import org.ekstep.analytics.framework.conf.AppConf
 import play.api.Configuration

@@ -6,6 +6,7 @@ import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.Application
 import org.ekstep.analytics.api.service._
+import org.ekstep.analytics.api.util.APIRestUtil
 import org.junit.runner.RunWith
 import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
@@ -30,7 +31,7 @@ class ApplicationControllerSpec extends FlatSpec with Matchers with BeforeAndAft
   implicit val timeout: Timeout = 20.seconds
   implicit val mockConfig = mock[Config];
   private val configurationMock = mock[Configuration]
-  private val mockRestUtil = mock[APIServiceRestUtil]
+  private val mockRestUtil = mock[APIRestUtil]
   private val healthCheckService = mock[HealthCheckAPIService]
   when(configurationMock.underlying).thenReturn(mockConfig)
 

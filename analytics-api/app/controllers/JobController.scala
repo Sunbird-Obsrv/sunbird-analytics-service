@@ -155,7 +155,8 @@ class JobController @Inject() (
             val userData = restUtil.get[Map[String, AnyRef]](apiUrl + userId, Option(headers))
             val userResponse = userData.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
             val userChannel = userResponse.getOrElse("channel", "").asInstanceOf[String]
-            val userRoles = userResponse.getOrElse("roles", List()).asInstanceOf[List[String]]
+            val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
+                  .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
             if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
                 if (superAdminRulesCheck) {
                     // get MHRD tenant value using org search API

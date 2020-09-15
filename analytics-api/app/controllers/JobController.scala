@@ -138,7 +138,8 @@ class JobController @Inject() (
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
     val userId = request.headers.get("X-User-ID").getOrElse("")
     val userAuthToken = request.headers.get("x-authenticated-user-token")
-    val apiUrl = config.getString("user.profile.url")
+    val authBearerToken = request.headers.get("Authorization")
+    val userApiUrl = config.getString("user.profile.url")
     if (channelId.nonEmpty) {
         if(userAuthToken.isEmpty) {
             APILogger.log(s"Authorizing $consumerId and $channelId")
@@ -151,8 +152,8 @@ class JobController @Inject() (
             }
         }
         else {
-            val headers = Map("x-authenticated-user-token" -> userAuthToken.get)
-            val userData = restUtil.get[Map[String, AnyRef]](apiUrl + userId, Option(headers))
+            val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
+            val userData = restUtil.get[Map[String, AnyRef]](userApiUrl + userId, Option(headers))
             val userResponse = userData.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
             val userChannel = userResponse.getOrElse("channel", "").asInstanceOf[String]
             val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]

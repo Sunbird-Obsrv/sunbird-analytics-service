@@ -37,10 +37,6 @@ class AccessTokenValidator {
         Base64.getMimeDecoder.decode(data.getBytes(StandardCharsets.UTF_8))
     }
 
-    private def isExpired(expiration: Int): Boolean = {
-        return (System.currentTimeMillis()/1000 > expiration)
-    }
-
 }
 
 object JsonKey {

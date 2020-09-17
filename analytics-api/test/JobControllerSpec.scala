@@ -124,6 +124,15 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("x-authenticated-user-token", "testUserToken")).withHeaders(("Authorization", "testBearerToken")))
     Helpers.status(result) should be (Helpers.FORBIDDEN)
     Helpers.contentAsString(result).indexOf(""""errmsg":"You are not authorized."""") should not be (-1)
+
+    // Failure cases: user read API failure
+    val response5 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-17 13:39:41:496+0000","params":{"resmsgid":null,"msgid":"08db1cfd-68a9-42e9-87ce-2e53e33f8b6d","err":"USER_NOT_FOUND","status":"USER_NOT_FOUND","errmsg":"user not found."},"responseCode":"RESOURCE_NOT_FOUND","result":{}}"""
+    when(restUtilMock.get[Response]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken", "Authorization" -> "testBearerToken")))).thenReturn(JSONUtils.deserialize[Response](response5))
+    when(accessTokenValidator.getUserId("testUserToken")).thenReturn("testUser")
+    result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("x-authenticated-user-token", "testUserToken")).withHeaders(("Authorization", "testBearerToken")))
+    Helpers.status(result) should be (Helpers.FORBIDDEN)
+    Helpers.contentAsString(result).indexOf(""""errmsg":"user not found."""") should not be (-1)
+
   }
 
   it should "test data request API" in {

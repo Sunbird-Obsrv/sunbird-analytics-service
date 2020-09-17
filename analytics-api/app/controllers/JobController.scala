@@ -145,10 +145,11 @@ class JobController @Inject() (
         else {
             // get userId from user auth token
             val userId = accessTokenValidator.getUserId(userAuthToken.get)
+            println("userId retrieved: " + userId)
             if(!"Unauthorized".equalsIgnoreCase(userId)) {
                 val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
                 val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
-                val status = userReadResponse.responseCode.equalsIgnoreCase("ok")
+                println("user read response: " + userReadResponse.toString)
                 if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
                     val userResponse = userReadResponse.result.getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
                     val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]

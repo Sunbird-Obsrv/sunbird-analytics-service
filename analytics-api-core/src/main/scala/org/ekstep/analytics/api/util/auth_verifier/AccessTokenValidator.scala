@@ -30,6 +30,7 @@ class AccessTokenValidator {
             }
         } catch {
             case ex: Exception =>
+                ex.printStackTrace()
                 println("Exception in verifyUserAccessToken: verify: " + ex)
                 APILogger.log("Exception in verifyUserAccessToken: verify: " + ex)
         }

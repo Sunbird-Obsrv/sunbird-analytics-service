@@ -13,6 +13,22 @@ class AccessTokenValidator {
 
     implicit val className = "org.ekstep.analytics.api.util.auth_verifier.AccessTokenValidator"
 
+    def getUserId(token: String): String = {
+        var userId = JsonKey.UNAUTHORIZED
+        val tokenElements = token.split("\\.")
+        val body = tokenElements(1)
+        val payload = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(body)))
+        println("payload: " + payload)
+        if (payload.nonEmpty && checkIss(payload.getOrElse("iss", "").asInstanceOf[String])) {
+            userId = payload.getOrElse(JsonKey.SUB, "").asInstanceOf[String]
+            if (userId.nonEmpty) {
+                val pos = userId.lastIndexOf(":")
+                userId = userId.substring(pos + 1)
+            }
+        }
+        userId
+    }
+
     def verifyUserToken(token: String, checkExpiry: Boolean = true, keyManager: KeyManager = new KeyManager, cryptoUtil: CryptoUtil = new CryptoUtil): String = {
         var userId = JsonKey.UNAUTHORIZED
         try {
@@ -35,7 +51,7 @@ class AccessTokenValidator {
     }
 
     @throws[JsonProcessingException]
-    def validateToken(token: String, checkExpiry: Boolean = true, keyManager: KeyManager, cryptoUtil: CryptoUtil): Map[String, Object] = {
+    def validateToken(token: String, checkExpiry: Boolean, keyManager: KeyManager, cryptoUtil: CryptoUtil): Map[String, Object] = {
         val tokenElements = token.split("\\.")
         val header = tokenElements(0)
         val body = tokenElements(1)

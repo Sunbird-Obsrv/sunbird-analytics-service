@@ -144,41 +144,39 @@ class JobController @Inject() (
         }
         else {
             // get userId from user auth token
-            val userId = accessTokenValidator.verifyUserToken(userAuthToken.get)
+            val userId = accessTokenValidator.getUserId(userAuthToken.get)
             if(!"Unauthorized".equalsIgnoreCase(userId)) {
                 val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
-                val userData = restUtil.get[Map[String, AnyRef]](userApiUrl + userId, Option(headers))
-                val userResponse = userData.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
-                val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
-                  .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
-                if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
-                    if (superAdminRulesCheck) {
-                        val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
-                        if (channelId.equalsIgnoreCase(userSlug)) (true, None)
+                val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
+                val status = userReadResponse.responseCode.equalsIgnoreCase("ok")
+                if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
+                    val userResponse = userReadResponse.result.getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                    val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
+                    val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
+                      .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
+                    if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
+                        if (superAdminRulesCheck) {
+                            val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
+                            if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
+                            else {
+                                // get MHRD tenant value using org search API
+                                val orgSearchApiUrl = config.getString("org.search.url")
+                                val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+                                val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
+                                val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                                  .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
+                                val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
+                                if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)
+                            }
+                        }
                         else {
-                            // get MHRD tenant value using org search API
-                            val orgSearchApiUrl = config.getString("org.search.url")
-                            val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-                            val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
-                            val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                              .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
-                            val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
-                            if (userChannel.equalsIgnoreCase(mhrdChannel)) (true, None)
-                            else (false, Option("User other than mhrd channel is not authorized"))
+                            val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
+                            if (channelId.equalsIgnoreCase(userOrgId)) return (true, None)
                         }
                     }
-                    else {
-                        val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
-                        if (channelId.equalsIgnoreCase(userOrgId)) (true, None)
-                        else (false, Option("User with incorrect channel is not authorized"))
-                    }
                 }
-                else (false, Option("User without admin role is not authorized"))
             }
-            else {
-                (false, Option("User auth token is not valid"))
-            }
+            (false, Option("You are not authorized."))
         }
     }
     else (false, Option("X-Channel-ID is missing in request header"))

@@ -20,6 +20,7 @@ class AccessTokenValidator {
         var userId = JsonKey.UNAUTHORIZED
         try {
             val payload = validateToken(token, checkExpiry, keyManager, cryptoUtil)
+            println("payload: " + payload)
             if (payload.nonEmpty && checkIss(payload.getOrElse("iss", "").asInstanceOf[String])) {
                 userId = payload.getOrElse(JsonKey.SUB, "").asInstanceOf[String]
                 if (userId.nonEmpty) {
@@ -45,8 +46,10 @@ class AccessTokenValidator {
         val headerData = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(header)))
         val keyId = headerData.getOrElse("kid", "").asInstanceOf[String]
         val isValid = cryptoUtil.verifyRSASign(payLoad, decodeFromBase64(signature), keyManager.getPublicKey(keyId).publicKey, JsonKey.SHA_256_WITH_RSA)
+        println("isValid: " + isValid)
         if (isValid) {
-            val tokenBody = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(body))) //mapper.readValue(new String(decodeFromBase64(body)), classOf[Map[String, AnyRef]])
+            val tokenBody = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(body)))
+            println("tokenBody: " + tokenBody)
             if (checkExpiry) {
                 val isExp = isExpired(tokenBody.getOrElse("exp", 0).asInstanceOf[Integer])
                 if (isExp) return Map.empty

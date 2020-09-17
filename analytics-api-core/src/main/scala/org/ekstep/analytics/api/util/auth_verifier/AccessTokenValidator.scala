@@ -43,6 +43,7 @@ class AccessTokenValidator {
         val payLoad = header + JsonKey.DOT_SEPARATOR + body
         val headerData = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(header)))
         val keyId = headerData.getOrElse("kid", "").asInstanceOf[String]
+        println(keyId, keyManager.getPublicKey(keyId))
         println(JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(body))))
         val isValid = cryptoUtil.verifyRSASign(payLoad, decodeFromBase64(signature), keyManager.getPublicKey(keyId).publicKey, JsonKey.SHA_256_WITH_RSA)
         println("isValid: " + isValid)

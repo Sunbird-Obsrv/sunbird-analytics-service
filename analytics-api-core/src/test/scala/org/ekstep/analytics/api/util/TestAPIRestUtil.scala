@@ -15,8 +15,6 @@ class TestAPIRestUtil extends FlatSpec with Matchers with BeforeAndAfterAll with
         when(HTTPClientMock.get[String](apiURL, None)).thenReturn("SUCCESS")
         val apiUtil = new APIRestUtil()
         val response = apiUtil.get[String](apiURL, None, HTTPClientMock)
-        println(apiURL)
-        println(response)
         response should be("SUCCESS")
     }
 

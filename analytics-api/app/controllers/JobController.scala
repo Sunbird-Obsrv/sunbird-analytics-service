@@ -3,14 +3,18 @@ package controllers
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.routing.FromConfig
+import com.fasterxml.jackson.core.JsonProcessingException
 import javax.inject.{Inject, Named}
+import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.service._
 import org.ekstep.analytics.api.util._
+import org.ekstep.analytics.api.util.auth_verifier.AccessTokenValidator
 import org.ekstep.analytics.api.{APIIds, ResponseCode, _}
 import org.ekstep.analytics.framework.conf.AppConf
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.mvc.{Request, Result, _}
+
 import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -24,7 +28,8 @@ class JobController @Inject() (
                                 configuration: Configuration,
                                 cc: ControllerComponents,
                                 cacheUtil: CacheUtil,
-                                restUtil: APIRestUtil
+                                restUtil: APIRestUtil,
+                                accessTokenValidator: AccessTokenValidator
                               )(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
 
   def dataRequest() = Action.async { request: Request[AnyContent] =>
@@ -121,22 +126,8 @@ class JobController @Inject() (
   def authorizeDataExhaustRequest(request: Request[AnyContent], authorizedRoles: List[String], superAdminRulesCheck: Boolean = false): (Boolean, Option[String]) = {
 
     // security enhancements logic
-    /*
-    Case 1:
-        - If user-token is null, check with X-Channel-Id and consumer-token(consumer-channel mapping)
-        - Process the request if X-Channel-Id matches the channel retrieved from the consumer-channel mapping table
-    Case 2:
-        - If user-token is not null and valid, check with X-Channel-Id, user-id and user profile
-        - Retrieve the user role and channel info from the user profile API
-        - X-Channel-Id should match the user Channel and user role should be either ORG_ADMIN or REPORT_ADMIN
-    Case 3:
-        - If user-token is not null and valid, check with X-Channel-Id, user-id and user profile
-        - Retrieve the user role and channel info from the user profile API
-        - User channel should match “MHRD” tenant and user role should be either ORG_ADMIN or REPORT_ADMIN
-     */
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val userId = request.headers.get("X-User-ID").getOrElse("")
     val userAuthToken = request.headers.get("x-authenticated-user-token")
     val authBearerToken = request.headers.get("Authorization")
     val userApiUrl = config.getString("user.profile.url")
@@ -152,29 +143,42 @@ class JobController @Inject() (
             }
         }
         else {
-            val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
-            val userData = restUtil.get[Map[String, AnyRef]](userApiUrl + userId, Option(headers))
-            val userResponse = userData.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-            val userChannel = userResponse.getOrElse("channel", "").asInstanceOf[String]
-            val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
+            // get userId from user auth token
+            val userId = accessTokenValidator.verifyUserToken(userAuthToken.get)
+            if(!"Unauthorized".equalsIgnoreCase(userId)) {
+                val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
+                val userData = restUtil.get[Map[String, AnyRef]](userApiUrl + userId, Option(headers))
+                val userResponse = userData.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
+                val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
                   .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
-            if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
-                if (superAdminRulesCheck) {
-                    // get MHRD tenant value using org search API
-                    val orgSearchApiUrl = config.getString("org.search.url")
-                    val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-                    val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
-                    val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                      .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
-                    if (userChannel.equalsIgnoreCase(mhrdChannel)) (true, None)
-                    else (false, Option("User without super admin access is not authorized"))
+                if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
+                    if (superAdminRulesCheck) {
+                        val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
+                        if (channelId.equalsIgnoreCase(userSlug)) (true, None)
+                        else {
+                            // get MHRD tenant value using org search API
+                            val orgSearchApiUrl = config.getString("org.search.url")
+                            val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+                            val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
+                            val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                              .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
+                            val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
+                            if (userChannel.equalsIgnoreCase(mhrdChannel)) (true, None)
+                            else (false, Option("User other than mhrd channel is not authorized"))
+                        }
+                    }
+                    else {
+                        val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
+                        if (channelId.equalsIgnoreCase(userOrgId)) (true, None)
+                        else (false, Option("User with incorrect channel is not authorized"))
+                    }
                 }
-                else {
-                    if (channelId.equalsIgnoreCase(userChannel)) (true, None)
-                    else (false, Option("User with incorrect channel is not authorized"))
-                }
+                else (false, Option("User without admin role is not authorized"))
             }
-            else (false, Option("User without admin role is not authorized"))
+            else {
+                (false, Option("User auth token is not valid"))
+            }
         }
     }
     else (false, Option("X-Channel-ID is missing in request header"))

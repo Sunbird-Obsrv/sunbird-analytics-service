@@ -18,8 +18,11 @@ class CryptoUtil {
             return sign.verify(signature);
         }
         catch {
-            case ex @ (_ : NoSuchAlgorithmException | _ : InvalidKeyException | _ :SignatureException ) =>
+            case ex @ (_ : NoSuchAlgorithmException | _ : InvalidKeyException | _ :SignatureException ) => {
+                ex.printStackTrace()
                 return false
+            }
+
         }
     }
 }

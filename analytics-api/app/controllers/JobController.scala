@@ -166,6 +166,7 @@ class JobController @Inject() (
                                 val orgSearchApiUrl = config.getString("org.search.url")
                                 val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
                                 val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
+                                println("org search response: " + JSONUtils.serialize(response))
                                 val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
                                   .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
                                 val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]

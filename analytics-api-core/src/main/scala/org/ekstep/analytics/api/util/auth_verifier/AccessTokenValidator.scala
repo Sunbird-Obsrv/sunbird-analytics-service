@@ -1,7 +1,7 @@
 package org.ekstep.analytics.api.util.auth_verifier
 
 import java.nio.charset.StandardCharsets
-import org.ekstep.analytics.api.util.{APILogger, JSONUtils}
+import org.ekstep.analytics.api.util.JSONUtils
 import java.util.Base64
 
 import javax.inject.Singleton
@@ -17,7 +17,6 @@ class AccessTokenValidator {
         val tokenElements = token.split("\\.")
         val body = tokenElements(1)
         val payload = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(body)))
-        println("payload: " + payload)
         if (payload.nonEmpty && checkIss(payload.getOrElse("iss", "").asInstanceOf[String])) {
             userId = payload.getOrElse(JsonKey.SUB, "").asInstanceOf[String]
             if (userId.nonEmpty) {

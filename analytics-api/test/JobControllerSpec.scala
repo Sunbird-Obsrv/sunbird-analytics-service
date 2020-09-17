@@ -98,7 +98,6 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     when(restUtilMock.get[Response]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken", "Authorization" -> "testBearerToken")))).thenReturn(JSONUtils.deserialize[Response](response1))
     when(accessTokenValidator.getUserId("testUserToken")).thenReturn("testUser")
     result = controller.getJob("client1", "request1").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")).withHeaders(("x-authenticated-user-token", "testUserToken")).withHeaders(("Authorization", "testBearerToken")))
-    println(Helpers.contentAsString(result))
     Helpers.status(result) should be (Helpers.OK)
 
     // Failure cases: user without admin access

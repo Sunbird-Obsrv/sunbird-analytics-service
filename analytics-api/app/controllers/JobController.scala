@@ -146,11 +146,11 @@ class JobController @Inject() (
             // get userId from user auth token
             val userId = accessTokenValidator.getUserId(userAuthToken.get)
             var unauthorizedErrMsg = "You are not authorized."
-            println("userId retrieved: " + userId)
+            APILogger.log("userId retrieved: " + userId)
             if(!"Unauthorized".equalsIgnoreCase(userId)) {
                 val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
                 val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
-                println("user read response: " + JSONUtils.serialize(userReadResponse))
+                APILogger.log("user read response: " + JSONUtils.serialize(userReadResponse))
                 if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
                     val userResponse = userReadResponse.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
                     val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
@@ -159,25 +159,25 @@ class JobController @Inject() (
                     if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
                         if (superAdminRulesCheck) {
                             val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
-                            println("header channel: " + channelId + " org slug: " + userSlug)
+                            APILogger.log("header channel: " + channelId + " org slug: " + userSlug)
                             if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
                             else {
                                 // get MHRD tenant value using org search API
                                 val orgSearchApiUrl = config.getString("org.search.url")
                                 val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
                                 val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
-                                println("org search response: " + JSONUtils.serialize(response))
+                                APILogger.log("org search response: " + JSONUtils.serialize(response))
                                 val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
                                   .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]]
                                 val mhrdChannel = if(contents.size > 0) contents.head.getOrElse("id", "").asInstanceOf[String] else ""
                                 val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
-                                println("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
+                                APILogger.log("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
                                 if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)
                             }
                         }
                         else {
                             val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
-                            println("header channel: " + channelId + " org id: " + userOrgId)
+                            APILogger.log("header channel: " + channelId + " org id: " + userOrgId)
                             if (channelId.equalsIgnoreCase(userOrgId)) return (true, None)
                         }
                     }

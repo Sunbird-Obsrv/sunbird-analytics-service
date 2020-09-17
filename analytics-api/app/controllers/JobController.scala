@@ -165,10 +165,11 @@ class JobController @Inject() (
                                 // get MHRD tenant value using org search API
                                 val orgSearchApiUrl = config.getString("org.search.url")
                                 val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-                                val response = restUtil.post[Map[String, AnyRef]](orgSearchApiUrl, requestBody)
+                                val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
                                 println("org search response: " + JSONUtils.serialize(response))
-                                val mhrdChannel = response.getOrElse("result", Map()).asInstanceOf[Map[String, AnyRef]].getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                                  .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]].head.getOrElse("id", "").asInstanceOf[String]
+                                val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                                  .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]]
+                                val mhrdChannel = if(contents.size > 0) contents.head.getOrElse("id", "").asInstanceOf[String] else ""
                                 val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
                                 println("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
                                 if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)

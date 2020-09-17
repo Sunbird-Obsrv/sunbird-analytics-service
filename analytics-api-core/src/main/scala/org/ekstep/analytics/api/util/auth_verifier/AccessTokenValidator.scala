@@ -16,6 +16,7 @@ class AccessTokenValidator {
     def verifyUserToken(token: String, checkExpiry: Boolean = true, keyManager: KeyManager = new KeyManager, cryptoUtil: CryptoUtil = new CryptoUtil): String = {
         var userId = JsonKey.UNAUTHORIZED
         try {
+            keyManager.init()
             val payload = validateToken(token, checkExpiry, keyManager, cryptoUtil)
             println("payload: " + payload)
             if (payload.nonEmpty && checkIss(payload.getOrElse("iss", "").asInstanceOf[String])) {
@@ -43,7 +44,7 @@ class AccessTokenValidator {
         val payLoad = header + JsonKey.DOT_SEPARATOR + body
         val headerData = JSONUtils.deserialize[Map[String, AnyRef]](new String(decodeFromBase64(header)))
         val keyId = headerData.getOrElse("kid", "").asInstanceOf[String]
-        println(headerData, keyId, JsonKey.SHA_256_WITH_RSA, decodeFromBase64(signature))
+        println(keyManager.getPublicKey(keyId))
         val isValid = cryptoUtil.verifyRSASign(payLoad, decodeFromBase64(signature), keyManager.getPublicKey(keyId).publicKey, JsonKey.SHA_256_WITH_RSA)
         println("isValid: " + isValid)
         if (isValid) {
@@ -64,7 +65,7 @@ class AccessTokenValidator {
         realmUrl.equalsIgnoreCase(iss)
     }
 
-    private def decodeFromBase64(data: String): Array[Byte] = {
+    def decodeFromBase64(data: String): Array[Byte] = {
         Base64.getMimeDecoder.decode(data.getBytes(StandardCharsets.UTF_8))
     }
 

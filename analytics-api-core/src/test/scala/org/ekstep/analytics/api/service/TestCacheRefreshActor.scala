@@ -21,6 +21,8 @@ class TestCacheRefreshActor extends FlatSpec with Matchers with MockitoSugar {
     val cacheUtilMock = mock[CacheUtil]
     
     doNothing().when(cacheUtilMock).initDeviceLocationCache()
+    doNothing().when(cacheUtilMock).initConsumerChannelCache()
+    doNothing().when(cacheUtilMock).initSuperAdminChannelCache()
     val cacheRefreshActorRef = TestActorRef(new CacheRefreshActor(cacheUtilMock))
 
     cacheRefreshActorRef.underlyingActor.receive("refresh")

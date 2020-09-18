@@ -4,15 +4,12 @@ import java.sql.Timestamp
 
 import scala.math.Ordering
 import scala.util.Try
-
-import org.ekstep.analytics.api.Params
+import org.ekstep.analytics.api.{Params, Response}
 import org.joda.time.DateTime
 import org.joda.time.DateTimeZone
-
 import com.google.common.collect.HashBasedTable
 import com.google.common.collect.Table
 import com.typesafe.config.Config
-
 import de.sciss.fingertree.RangedSeq
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,12 +26,32 @@ case class LanguageResponse(id: String, ver: String, ts: String, params: Params,
 // TODO: Need to refactor this file. Reduce case classes, combine objects. Proper error handling.
 
 @Singleton
-class CacheUtil @Inject()(postgresDB: PostgresDBUtil) {
+class CacheUtil @Inject()(postgresDB: PostgresDBUtil, restUtil: APIRestUtil) {
 
   implicit val className = "org.ekstep.analytics.api.util.CacheUtil"
 
   private var cacheTimestamp: Long = 0L;
   private val consumerChannelTable: Table[String, String, Integer] = HashBasedTable.create();
+  private var superAdminChannel: String = "";
+
+  def init()(implicit config: Config) {
+    initDeviceLocationCache()
+    initConsumerChannelCache()
+    initSuperAdminChannelCache()
+  }
+
+  def initSuperAdminChannelCache()(implicit config: Config) {
+    APILogger.log("Updating super admin channel cache ")
+    // get MHRD tenant id using org search API
+    val orgSearchApiUrl = config.getString("org.search.url")
+    val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
+    APILogger.log("org search response: " + JSONUtils.serialize(response))
+    val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+      .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]]
+    superAdminChannel = if(contents.size > 0) contents.head.getOrElse("id", "").asInstanceOf[String] else ""
+
+  }
 
   def initConsumerChannelCache()(implicit config: Config) {
 
@@ -102,6 +119,10 @@ class CacheUtil @Inject()(postgresDB: PostgresDBUtil) {
       initConsumerChannelCache()
       consumerChannelTable
     }
+  }
+
+  def getSuperAdminChannel()(implicit config: Config): String = {
+    superAdminChannel
   }
   
 }

@@ -17,8 +17,9 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
   implicit val config = ConfigFactory.load()
   val postgresDBMock = mock[PostgresDBUtil]
   val resultSetMock = mock[ResultSet]
+  val restUtilMock = mock[APIRestUtil]
 
-  val cacheUtil = new CacheUtil(postgresDBMock)
+  val cacheUtil = new CacheUtil(postgresDBMock, restUtilMock)
 
   "CacheUtil" should "populate device location cache" in {
     when(postgresDBMock.readLocation(ArgumentMatchers.any())).thenReturn(List(DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "", "29", "Bangalore")))
@@ -55,7 +56,7 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
   
   it should "validate all exception branches" in {
     noException must be thrownBy {
-      val cacheUtil2 = new CacheUtil(new PostgresDBUtil())
+      val cacheUtil2 = new CacheUtil(new PostgresDBUtil(), new APIRestUtil)
       cacheUtil2.initDeviceLocationCache()
     }
     

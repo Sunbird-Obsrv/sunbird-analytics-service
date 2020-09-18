@@ -7,8 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import javax.inject.{Inject, Named}
 import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util._
-import org.ekstep.analytics.api.util.auth_verifier.AccessTokenValidator
+import org.ekstep.analytics.api.util.{AccessTokenValidator, _}
 import org.ekstep.analytics.api.{APIIds, ResponseCode, _}
 import org.ekstep.analytics.framework.conf.AppConf
 import play.api.Configuration
@@ -162,14 +161,8 @@ class JobController @Inject() (
                             APILogger.log("header channel: " + channelId + " org slug: " + userSlug)
                             if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
                             else {
-                                // get MHRD tenant value using org search API
-                                val orgSearchApiUrl = config.getString("org.search.url")
-                                val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-                                val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
-                                APILogger.log("org search response: " + JSONUtils.serialize(response))
-                                val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                                  .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]]
-                                val mhrdChannel = if(contents.size > 0) contents.head.getOrElse("id", "").asInstanceOf[String] else ""
+                                // get MHRD tenant value from cache
+                                val mhrdChannel = cacheUtil.getSuperAdminChannel()
                                 val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
                                 APILogger.log("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
                                 if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)

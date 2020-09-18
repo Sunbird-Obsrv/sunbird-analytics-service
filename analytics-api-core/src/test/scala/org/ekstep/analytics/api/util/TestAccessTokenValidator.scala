@@ -1,4 +1,4 @@
-package org.ekstep.analytics.api.util.auth_verifier
+package org.ekstep.analytics.api.util
 
 import org.scalatest.{FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar

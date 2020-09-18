@@ -1,7 +1,6 @@
-package org.ekstep.analytics.api.util.auth_verifier
+package org.ekstep.analytics.api.util
 
 import java.nio.charset.StandardCharsets
-import org.ekstep.analytics.api.util.JSONUtils
 import java.util.Base64
 
 import javax.inject.Singleton

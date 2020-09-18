@@ -27,7 +27,7 @@ class TestCacheRefreshActor extends FlatSpec with Matchers with MockitoSugar {
 
     cacheRefreshActorRef.underlyingActor.receive("refresh")
 
-    verify(cacheUtilMock, atLeastOnce()).initDeviceLocationCache()
+    verify(cacheUtilMock, atLeastOnce()).init()
   }
 
 }

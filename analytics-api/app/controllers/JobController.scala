@@ -127,7 +127,7 @@ class JobController @Inject() (
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
     val userAuthToken = request.headers.get("x-authenticated-user-token")
-    val userId = request.headers.get("X-User-ID").getOrElse("")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
     val authBearerToken = request.headers.get("Authorization")
     val userApiUrl = config.getString("user.profile.url")
     if (channelId.nonEmpty) {

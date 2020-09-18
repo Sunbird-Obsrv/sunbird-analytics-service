@@ -7,7 +7,7 @@ import com.fasterxml.jackson.core.JsonProcessingException
 import javax.inject.{Inject, Named}
 import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{AccessTokenValidator, _}
+import org.ekstep.analytics.api.util._
 import org.ekstep.analytics.api.{APIIds, ResponseCode, _}
 import org.ekstep.analytics.framework.conf.AppConf
 import play.api.Configuration
@@ -27,8 +27,7 @@ class JobController @Inject() (
                                 configuration: Configuration,
                                 cc: ControllerComponents,
                                 cacheUtil: CacheUtil,
-                                restUtil: APIRestUtil,
-                                accessTokenValidator: AccessTokenValidator
+                                restUtil: APIRestUtil
                               )(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
 
   def dataRequest() = Action.async { request: Request[AnyContent] =>
@@ -128,55 +127,46 @@ class JobController @Inject() (
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
     val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-User-ID").getOrElse("")
     val authBearerToken = request.headers.get("Authorization")
     val userApiUrl = config.getString("user.profile.url")
     if (channelId.nonEmpty) {
         if(userAuthToken.isEmpty) {
             APILogger.log(s"Authorizing $consumerId and $channelId")
-            val whitelistedConsumers = config.getStringList("channel.data_exhaust.whitelisted.consumers")
-            // if consumerId is present in whitelisted consumers, skip auth check
-            if (consumerId.nonEmpty && whitelistedConsumers.contains(consumerId)) (true, None)
-            else {
-                val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
-                if (status.getOrElse(0) == 1) (true, None) else (false, Option(s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"))
-            }
+            val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
+            if (status.getOrElse(0) == 1) (true, None) else (false, Option(s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"))
         }
         else {
-            // get userId from user auth token
-            val userId = accessTokenValidator.getUserId(userAuthToken.get)
             var unauthorizedErrMsg = "You are not authorized."
-            APILogger.log("userId retrieved: " + userId)
-            if(!"Unauthorized".equalsIgnoreCase(userId)) {
-                val headers = Map("x-authenticated-user-token" -> userAuthToken.get, "Authorization" -> authBearerToken.getOrElse(""))
-                val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
-                APILogger.log("user read response: " + JSONUtils.serialize(userReadResponse))
-                if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
-                    val userResponse = userReadResponse.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
-                    val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
-                    val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
-                      .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
-                    if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
-                        if (superAdminRulesCheck) {
-                            val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
-                            APILogger.log("header channel: " + channelId + " org slug: " + userSlug)
-                            if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
-                            else {
-                                // get MHRD tenant value from cache
-                                val mhrdChannel = cacheUtil.getSuperAdminChannel()
-                                val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
-                                APILogger.log("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
-                                if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)
-                            }
-                        }
+            val headers = Map("x-authenticated-user-token" -> userAuthToken.get)
+            val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
+            APILogger.log("user read response: " + JSONUtils.serialize(userReadResponse))
+            if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
+                val userResponse = userReadResponse.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
+                val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
+                  .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
+                if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
+                    if (superAdminRulesCheck) {
+                        val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
+                        APILogger.log("header channel: " + channelId + " org slug: " + userSlug)
+                        if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
                         else {
-                            val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
-                            APILogger.log("header channel: " + channelId + " org id: " + userOrgId)
-                            if (channelId.equalsIgnoreCase(userOrgId)) return (true, None)
+                            // get MHRD tenant value from cache
+                            val mhrdChannel = cacheUtil.getSuperAdminChannel()
+                            val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
+                            APILogger.log("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
+                            if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)
                         }
                     }
+                    else {
+                        val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
+                        APILogger.log("header channel: " + channelId + " org id: " + userOrgId)
+                        if (channelId.equalsIgnoreCase(userOrgId)) return (true, None)
+                    }
                 }
-                else { unauthorizedErrMsg = userReadResponse.params.errmsg }
             }
+            else { unauthorizedErrMsg = userReadResponse.params.errmsg }
             (false, Option(unauthorizedErrMsg))
         }
     }

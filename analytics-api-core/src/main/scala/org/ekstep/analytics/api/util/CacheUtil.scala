@@ -43,8 +43,9 @@ class CacheUtil @Inject()(postgresDB: PostgresDBUtil, restUtil: APIRestUtil) {
   def initSuperAdminChannelCache()(implicit config: Config) {
     APILogger.log("Updating super admin channel cache ")
     // get MHRD tenant id using org search API
+    val superAdminChannelKey = config.getString("dataexhaust.super.admin.channel")
     val orgSearchApiUrl = config.getString("org.search.url")
-    val requestBody = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    val requestBody = s"""{"request":{"filters":{"channel":"$superAdminChannelKey"},"offset":0,"limit":1000,"fields":["id"]}}"""
     val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
     APILogger.log("org search response: " + JSONUtils.serialize(response))
     val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]

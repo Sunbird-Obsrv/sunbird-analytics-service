@@ -44,11 +44,11 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
 
   it should "cache super admin channel" in {
       cacheUtil.getSuperAdminChannel() should be("")
-      val orgRequest = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-      when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-mhrd\"}]}}}"))
+      val orgRequest = """{"request":{"filters":{"channel":"sunbird"},"offset":0,"limit":1000,"fields":["id"]}}"""
+      when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-admin\"}]}}}"))
       cacheUtil.initSuperAdminChannelCache()
       verify(restUtilMock, times(2)).post("https://dev.sunbirded.org/api/org/v1/search", orgRequest)
-      cacheUtil.getSuperAdminChannel() should be("channel-mhrd")
+      cacheUtil.getSuperAdminChannel() should be("channel-admin")
 
     }
 
@@ -87,8 +87,8 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
     when(postgresDBMock.readLocation(ArgumentMatchers.any())).thenReturn(List(DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "", "29", "Bangalore")))
     when(postgresDBMock.readGeoLocationRange(ArgumentMatchers.any())).thenReturn(List(GeoLocationRange(1234, 1234, 1)))
     when(postgresDBMock.read(ArgumentMatchers.any())).thenReturn(List(ConsumerChannel(consumerId = "Ekstep", channel = "in.ekstep", status = 0, createdBy = "System", createdOn = new Timestamp(new Date().getTime), updatedOn = new Timestamp(new Date().getTime))))
-    val orgRequest = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
-    when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-mhrd\"}]}}}"))
+    val orgRequest = """{"request":{"filters":{"channel":"sunbird"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-admin\"}]}}}"))
 
     cacheUtil.init()
   }

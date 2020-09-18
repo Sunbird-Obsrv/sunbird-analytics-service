@@ -79,7 +79,17 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
     
     val ipLocation = IPLocationCache.getIpLocation(1234);
     Console.println("ipLocation", ipLocation);
-    
-    
+
+  }
+
+  it should "call init method" in {
+    reset(postgresDBMock)
+    when(postgresDBMock.readLocation(ArgumentMatchers.any())).thenReturn(List(DeviceLocation(1234, "Asia", "IN", "India", "KA", "Karnataka", "", "Bangalore", "", "29", "Bangalore")))
+    when(postgresDBMock.readGeoLocationRange(ArgumentMatchers.any())).thenReturn(List(GeoLocationRange(1234, 1234, 1)))
+    when(postgresDBMock.read(ArgumentMatchers.any())).thenReturn(List(ConsumerChannel(consumerId = "Ekstep", channel = "in.ekstep", status = 0, createdBy = "System", createdOn = new Timestamp(new Date().getTime), updatedOn = new Timestamp(new Date().getTime))))
+    val orgRequest = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-mhrd\"}]}}}"))
+
+    cacheUtil.init()
   }
 }

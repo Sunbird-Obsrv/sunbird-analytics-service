@@ -20,6 +20,6 @@ class CacheRefreshActor @Inject()(cacheUtil: CacheUtil) extends Actor {
     }
 
     def receive = {
-        case _ => cacheUtil.initDeviceLocationCache()
+        case _ => cacheUtil.init()
     }
 }

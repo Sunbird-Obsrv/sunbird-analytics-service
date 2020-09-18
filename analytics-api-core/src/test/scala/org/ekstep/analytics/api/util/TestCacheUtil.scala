@@ -1,10 +1,10 @@
 package org.ekstep.analytics.api.util
 
-import java.sql.{ ResultSet, Timestamp }
+import java.sql.{ResultSet, Timestamp}
 import java.util.Date
 
 import com.google.common.collect.Table
-import org.ekstep.analytics.api.BaseSpec
+import org.ekstep.analytics.api.{BaseSpec, Response}
 import org.ekstep.analytics.framework.util.HTTPClient
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito._
@@ -41,6 +41,16 @@ class TestCacheUtil extends FlatSpec with Matchers with BeforeAndAfterAll with M
     when(postgresDBMock.read(ArgumentMatchers.any())).thenThrow(new RuntimeException("something went wrong!"))
     cacheUtil.initConsumerChannelCache()
   }
+
+  it should "cache super admin channel" in {
+      cacheUtil.getSuperAdminChannel() should be("")
+      val orgRequest = """{"request":{"filters":{"channel":"mhrd"},"offset":0,"limit":1000,"fields":["id"]}}"""
+      when(restUtilMock.post[Response]("https://dev.sunbirded.org/api/org/v1/search", orgRequest)).thenReturn(JSONUtils.deserialize[Response]("{\"id\":\"api.org.search\",\"ver\":\"v1\",\"ts\":\"2020-09-14 11:27:41:233+0000\",\"params\":{\"resmsgid\":null,\"msgid\":\"70ae090e-d620-4ba2-972b-865b9ea811a8\",\"err\":null,\"status\":\"success\",\"errmsg\":null},\"responseCode\":\"OK\",\"result\":{\"response\":{\"count\":1,\"content\":[{\"id\":\"channel-mhrd\"}]}}}"))
+      cacheUtil.initSuperAdminChannelCache()
+      verify(restUtilMock, times(2)).post("https://dev.sunbirded.org/api/org/v1/search", orgRequest)
+      cacheUtil.getSuperAdminChannel() should be("channel-mhrd")
+
+    }
 
   it should "populate consumer channel table" in {
     reset(postgresDBMock)

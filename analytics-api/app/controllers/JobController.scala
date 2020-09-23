@@ -46,8 +46,9 @@ class JobController @Inject() (
     }
   }
 
-  def getJob(tag: String, requestId: String) = Action.async { request: Request[AnyContent] =>
+  def getJob(tag: String) = Action.async { request: Request[AnyContent] =>
 
+    val requestId = request.getQueryString("requestId").getOrElse("")
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val authorizedRoles = config.getStringList("ondemand.dataexhaust.roles").toList
     val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(request, authorizedRoles) else (true, None)

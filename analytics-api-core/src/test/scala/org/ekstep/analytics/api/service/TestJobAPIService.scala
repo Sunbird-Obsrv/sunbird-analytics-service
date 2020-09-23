@@ -58,7 +58,7 @@ class TestJobAPIService extends BaseSpec  {
   "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {
 
     EmbeddedPostgresql.execute(
-      s"""insert into job_request ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "encryption_key") values ('client-1:in.ekstep', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
         'SUBMITTED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', 'xxxx-xxxx');""")
@@ -118,13 +118,13 @@ class TestJobAPIService extends BaseSpec  {
   it should "return the list of jobs in descending order" in {
 
     EmbeddedPostgresql.execute(
-      s"""insert into job_request ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-2', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
         'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10');""")
 
     EmbeddedPostgresql.execute(
-      s"""insert into job_request ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-2', '562CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
         'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_1130596093638492161","do_1130934466492252169"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:55:39.019+05:30', '2020-09-08T14:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:53:39.019+05:30', '5');""")
@@ -154,13 +154,13 @@ class TestJobAPIService extends BaseSpec  {
   it should "re-submit job if it is already completed" in {
 
     EmbeddedPostgresql.execute(
-      s"""insert into job_request ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', '17CB7C4AC4202ABC0605407058EE0504', 'assessment-score-report',
         'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10', '0');""")
 
     EmbeddedPostgresql.execute(
-      s"""insert into job_request ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', 'C5A633CED379CAEF0BD339E3F0EE80E0', 'assessment-score-report',
         'COMPLETED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-2', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"file1.csv", "file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10', '0');""")

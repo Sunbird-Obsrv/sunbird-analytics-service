@@ -82,7 +82,7 @@ class PostgresDBUtil {
     def saveJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
-        val query = sql"""insert into ${JobRequest.table} ("tag", "request_id", "dataset", "status", "dataset_config", "requested_by", "requested_channel", "dt_job_submitted", "encryption_key", "iteration") values
+        val query = sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted", "encryption_key", "iteration") values
               (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.dataset}, ${jobRequest.status},
               CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
               ${new Date()}, ${encryptionKey}, ${jobRequest.iteration.getOrElse(0)})"""
@@ -93,7 +93,7 @@ class PostgresDBUtil {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
         val query = sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
-              dataset =${jobRequest.dataset}, status =${jobRequest.status}, dataset_config =CAST($requestData AS JSON),
+              job_id =${jobRequest.dataset}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
               requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel},
               encryption_key =${encryptionKey}, iteration =${jobRequest.iteration.getOrElse(0)}
               where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""
@@ -186,8 +186,8 @@ object ReportConfig extends SQLSyntaxSupport[ReportConfig] {
     )
 }
 
-case class JobRequest(tag: String, request_id: String, dataset: String, status: String,
-                      dataset_config: Map[String, Any], requested_by: String, requested_channel: String,
+case class JobRequest(tag: String, request_id: String, job_id: String, status: String,
+                      request_data: Map[String, Any], requested_by: String, requested_channel: String,
                       dt_job_submitted: Long , download_urls: Option[List[String]], dt_file_created: Option[Long],
                       dt_job_completed: Option[Long], execution_time: Option[Long], err_message: Option[String], iteration: Option[Int]) {
     def this() = this("", "", "", "", Map[String, Any](), "", "", 0, None, None, None, None, None, None)
@@ -195,16 +195,16 @@ case class JobRequest(tag: String, request_id: String, dataset: String, status: 
 
 object JobRequest extends SQLSyntaxSupport[JobRequest] {
     override val tableName = AppConfig.getString("postgres.table.job_request.name")
-    override val columns = Seq("tag", "request_id", "dataset", "status", "dataset_config", "requested_by",
+    override val columns = Seq("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "download_urls", "dt_file_created", "dt_job_completed", "execution_time", "err_message", "iteration")
     override val useSnakeCaseColumnName = false
 
     def apply(rs: WrappedResultSet) = new JobRequest(
         rs.string("tag"),
         rs.string("request_id"),
-        rs.string("dataset"),
+        rs.string("job_id"),
         rs.string("status"),
-        JSONUtils.deserialize[Map[String, Any]](rs.string("dataset_config")),
+        JSONUtils.deserialize[Map[String, Any]](rs.string("request_data")),
         rs.string("requested_by"),
         rs.string("requested_channel"),
         rs.timestamp("dt_job_submitted").getTime,

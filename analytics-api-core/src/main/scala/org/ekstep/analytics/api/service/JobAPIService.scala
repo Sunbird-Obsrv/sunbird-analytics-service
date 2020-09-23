@@ -135,7 +135,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    val outputFormat = body.request.output_format.getOrElse(OutputFormat.JSON)
+    val outputFormat = body.request.outputFormat.getOrElse(OutputFormat.JSON)
     if (outputFormat != null && !outputFormat.isEmpty && !(outputFormat.equals(OutputFormat.CSV) || outputFormat.equals(OutputFormat.JSON))) {
         Map("status" -> "false", "message" -> "invalid type. It should be one of [csv, json].")
     } else if (body.request.tag.isEmpty) {

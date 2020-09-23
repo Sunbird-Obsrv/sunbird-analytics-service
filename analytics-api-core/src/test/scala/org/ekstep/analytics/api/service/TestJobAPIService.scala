@@ -50,7 +50,7 @@ class TestJobAPIService extends BaseSpec  {
 
 
   "JobAPIService" should "return response for data request" in {
-      val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"test-client","requestedBy":"test-1","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+      val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"test-client","requestedBy":"test-1","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
       val response = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
       response.responseCode should be("OK")
   }
@@ -75,7 +75,7 @@ class TestJobAPIService extends BaseSpec  {
     val responseData = JSONUtils.deserialize[JobResponse](stringResponse)
     responseData.status should be("SUBMITTED")
 
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
     res1.responseCode should be("OK")
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
@@ -85,27 +85,27 @@ class TestJobAPIService extends BaseSpec  {
 
 
   "JobAPIService" should "return failed response for data request with empty tag in request" in {
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val response = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
     response.params.status should be("failed")
     response.params.errmsg should be ("tag is empty")
   }
 
   "JobAPIService" should "return failed response for data request with empty dataset in request" in {
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val response = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
     response.params.status should be("failed")
     response.params.errmsg should be ("dataset is empty")
   }
   
   it should "validate the request body" in {
-    var response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"proto"}}""", "in.ekstep")
+    var response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"proto"}}""", "in.ekstep")
     response.params.errmsg should be ("invalid type. It should be one of [csv, json].")
     
-    response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}""", "in.ekstep")
+    response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}""", "in.ekstep")
     response.params.errmsg should be ("tag is empty")
 
-    response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}""", "in.ekstep")
+    response = jobApiServiceActorRef.underlyingActor.dataRequest("""{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-1","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}""", "in.ekstep")
     response.params.errmsg should be ("dataset is empty")
 
   }
@@ -179,7 +179,7 @@ class TestJobAPIService extends BaseSpec  {
     responseData.attempts should be(0)
 
     // without encryption key
-    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val res1 = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
     res1.responseCode should be("OK")
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
@@ -188,7 +188,7 @@ class TestJobAPIService extends BaseSpec  {
     responseData1.attempts should be(1)
 
       // with encryption key
-    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-2","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-2","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val res2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "in.ekstep")
     res2.responseCode should be("OK")
     val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
@@ -199,9 +199,9 @@ class TestJobAPIService extends BaseSpec  {
   }
 
   "JobAPIService" should "return different request id for same tag having different requested channel" in {
-    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val response1 = jobApiServiceActorRef.underlyingActor.dataRequest(request1, "test-channel-1")
-    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-2","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val response2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "test-channel-2")
     response2.result.head.get("requestId").get should not be (response1.result.head.get("requestId").get)
 
@@ -367,7 +367,7 @@ class TestJobAPIService extends BaseSpec  {
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
 
-    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"requestedBy":"test-1","dataset":"course-progress-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"output_format":"csv"}}"""
+    val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"requestedBy":"test-1","dataset":"course-progress-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     result = Await.result((jobApiServiceActorRef ? DataRequest(request1, "in.ekstep", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
 

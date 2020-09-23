@@ -13,7 +13,7 @@ object Model {
 class BaseMetric(val d_period: Option[Int] = None) extends AnyRef with Serializable
 trait Metrics extends BaseMetric with Serializable
 
-case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], dataset_id: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], dataset: Option[String], datasetConfig: Option[Map[String, Any]], requestedBy: Option[String], encryptionKey: Option[String]);
+case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], dataset: Option[String], datasetConfig: Option[Map[String, Any]], requestedBy: Option[String], encryptionKey: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)

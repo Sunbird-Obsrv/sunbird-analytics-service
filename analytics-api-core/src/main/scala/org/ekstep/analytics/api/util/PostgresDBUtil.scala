@@ -80,20 +80,20 @@ class PostgresDBUtil {
     }
 
     def saveJobRequest(jobRequest: JobConfig) = {
-        val requestData = JSONUtils.serialize(jobRequest.request_data)
+        val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
         val query = sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted", "encryption_key", "iteration") values
-              (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.job_id}, ${jobRequest.status},
+              (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.dataset}, ${jobRequest.status},
               CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
               ${new Date()}, ${encryptionKey}, ${jobRequest.iteration.getOrElse(0)})"""
         query.update().apply().toString
     }
 
     def updateJobRequest(jobRequest: JobConfig) = {
-        val requestData = JSONUtils.serialize(jobRequest.request_data)
+        val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
         val query = sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
-              job_id =${jobRequest.job_id}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
+              job_id =${jobRequest.dataset}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
               requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel},
               encryption_key =${encryptionKey}, iteration =${jobRequest.iteration.getOrElse(0)}
               where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""

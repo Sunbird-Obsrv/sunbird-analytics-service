@@ -116,10 +116,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config, fc: FrameworkContext): JobRequest = {
     val tag = body.request.tag.getOrElse("")
     val appendedTag = tag + ":" + channel
-    val jobId = body.request.jobId.getOrElse("")
+    val jobId = body.request.dataset.getOrElse("")
     val requestedBy = body.request.requestedBy.getOrElse("")
     val requestId = _getRequestId(tag, jobId, requestedBy, channel)
-    val requestConfig = body.request.jobConfig.getOrElse(Map.empty)
+    val requestConfig = body.request.datasetConfig.getOrElse(Map.empty)
     val encryptionKey = body.request.encryptionKey
     val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
     val iterationCount = if (job.nonEmpty) job.get.iteration.getOrElse(0) + 1 else 0
@@ -135,13 +135,12 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    val outputFormat = body.request.output_format.getOrElse(OutputFormat.JSON)
-    if (outputFormat != null && !outputFormat.isEmpty && !(outputFormat.equals(OutputFormat.CSV) || outputFormat.equals(OutputFormat.JSON))) {
-        Map("status" -> "false", "message" -> "invalid type. It should be one of [csv, json].")
-    } else if (body.request.tag.isEmpty) {
+    if (body.request.tag.isEmpty) {
         Map("status" -> "false", "message" -> "tag is empty")
-    } else if (body.request.jobId.isEmpty) {
-      Map("status" -> "false", "message" -> "jobId is empty")
+    } else if (body.request.dataset.isEmpty) {
+      Map("status" -> "false", "message" -> "dataset is empty")
+    } else if (body.request.datasetConfig.isEmpty) {
+      Map("status" -> "false", "message" -> "datasetConfig is empty")
     } else {
        Map("status" -> "true")
     }
@@ -166,7 +165,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val request = job.request_data
     val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
     val downloadUrls = job.download_urls.getOrElse(List[String]()).map{f => storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt)).asInstanceOf[String] }
-    JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds))
+    JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(expiryTimeInSeconds), job.err_message)
   }
 
   private def _saveJobRequest(jobConfig: JobConfig): JobRequest = {

@@ -117,7 +117,7 @@ object APIIds {
 
 case class JobStats(dtJobSubmitted: Long, dtJobCompleted:  Option[Long] = None, executionTime: Option[Long] = None);
 case class JobResponse(requestId: String, tag: String, dataset: String, requestedBy: String, requestedChannel: String, status: String, lastUpdated: Long, datasetConfig: Map[String, Any], attempts: Int, jobStats: Option[JobStats] = None, downloadUrls: Option[List[String]] = None, expiresAt: Option[Long] = None, statusMessage: Option[String] = None);
-case class JobConfig(tag: String, request_id: String, job_id: String, status: String, request_data: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String], iteration: Option[Int] = Option(0))
+case class JobConfig(tag: String, request_id: String, dataset: String, status: String, dataset_config: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String], iteration: Option[Int] = Option(0))
 
 //Experiment
 case class ExperimentRequestBody(id: String, ver: String, ts: String, request: ExperimentCreateRequest, params: Option[Params])

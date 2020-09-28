@@ -91,7 +91,9 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val prefix = basePrefix + datasetId + "/" + channel + "/"
       APILogger.log("prefix: " + prefix)
 
-      val storageService = fc.getStorageService(storageType)
+      val storageKey = config.getString("storage.key.config")
+      val storageSecret = config.getString("storage.secret.config")
+      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
@@ -147,7 +149,9 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _createJobResponse(job: JobRequest)(implicit config: Config, fc: FrameworkContext): JobResponse = {
-    val storageService = fc.getStorageService(storageType)
+    val storageKey = config.getString("storage.key.config")
+    val storageSecret = config.getString("storage.secret.config")
+    val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
 
     val expiry = config.getInt("channel.data_exhaust.expiryMins")
     val bucket = config.getString("data_exhaust.bucket")

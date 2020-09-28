@@ -45,12 +45,12 @@ class CacheUtil @Inject()(postgresDB: PostgresDBUtil, restUtil: APIRestUtil) {
     // get MHRD tenant id using org search API
     val superAdminChannelKey = config.getString("dataexhaust.super.admin.channel")
     val orgSearchApiUrl = config.getString("org.search.url")
-    val requestBody = s"""{"request":{"filters":{"channel":"$superAdminChannelKey"},"offset":0,"limit":1000,"fields":["id"]}}"""
+    val requestBody = s"""{"request":{"filters":{"channel":"$superAdminChannelKey"},"offset":0,"limit":1000,"fields":["id","slug"]}}"""
     val response = restUtil.post[Response](orgSearchApiUrl, requestBody)
     APILogger.log("org search response: " + JSONUtils.serialize(response))
     val contents = response.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
       .getOrElse("content", List(Map())).asInstanceOf[List[Map[String, AnyRef]]]
-    superAdminChannel = if(contents.size > 0) contents.head.getOrElse("id", "").asInstanceOf[String] else ""
+    superAdminChannel = if(contents.size > 0) contents.head.getOrElse("slug", "").asInstanceOf[String] else ""
 
   }
 

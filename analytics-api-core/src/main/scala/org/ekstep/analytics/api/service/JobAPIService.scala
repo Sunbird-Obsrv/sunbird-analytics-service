@@ -168,8 +168,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val keys = f.split("/")
       val objectKey = keys(keys.size - 2) + "/" + keys(keys.size - 1)
       APILogger.log("Getting signed URL for - " + objectKey)
-      println(AppConf.getStorageKey("azure"), AppConf.getStorageSecret("azure"))
-      storageService.getSignedURL(bucket, objectKey, Option(expiryTimeInSeconds.toInt))
+      storageService.getSignedURL(bucket, f, Option(expiryTimeInSeconds.toInt))
     } else List[String]()
     JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(Long.box(expiryTime)), job.err_message)
   }

@@ -167,6 +167,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val downloadUrls = if(job.download_urls.nonEmpty) job.download_urls.get.map{f =>
       val keys = f.split("/")
       val objectKey = keys(keys.size - 2) + "/" + keys(keys.size - 1)
+      APILogger.log("Getting signed URL for - " + objectKey)
       storageService.getSignedURL(bucket, objectKey, Option(expiryTimeInSeconds.toInt))
     } else List[String]()
     JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(Long.box(expiryTime)), job.err_message)

@@ -194,7 +194,7 @@ class TestJobAPIService extends BaseSpec  {
     val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
     responseData2.status should be("SUBMITTED")
     responseData2.tag should be("client-3:in.ekstep")
-    responseData2.attempts should be(1)
+    responseData2.attempts should be(0)
 
   }
 

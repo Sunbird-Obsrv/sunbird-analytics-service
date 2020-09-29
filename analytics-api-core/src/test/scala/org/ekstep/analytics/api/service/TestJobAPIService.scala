@@ -185,7 +185,7 @@ class TestJobAPIService extends BaseSpec  {
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
     responseData1.status should be("SUBMITTED")
     responseData1.tag should be("client-3:in.ekstep")
-    responseData1.attempts should be(1)
+    responseData1.attempts should be(0)
 
       // with encryption key
     val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-2","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""

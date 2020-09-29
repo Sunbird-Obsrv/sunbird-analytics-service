@@ -129,7 +129,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
     if (job.isEmpty) {
         _saveJobRequest(jobConfig)
-    } else if (job.get.status.equalsIgnoreCase(JobStatus.COMPLETED.toString)) {
+    } else if (job.get.status.equalsIgnoreCase("FAILED") || job.get.status.equalsIgnoreCase("SUCCESS")) {
         _updateJobRequest(jobConfig)
     } else {
       job.get

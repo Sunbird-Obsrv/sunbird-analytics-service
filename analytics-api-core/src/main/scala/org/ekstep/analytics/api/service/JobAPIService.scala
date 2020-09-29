@@ -129,7 +129,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
     if (job.isEmpty) {
         _saveJobRequest(jobConfig)
-    } else if (job.get.status.equalsIgnoreCase("FAILED") || job.get.status.equalsIgnoreCase("SUCCESS")) {
+    } else if (job.get.status.equalsIgnoreCase("FAILED")) {
         _updateJobRequest(jobConfig)
     } else {
       job.get
@@ -186,7 +186,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
    }
 
-  private def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String): String = {
+  def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String): String = {
     val key = Array(tag, jobId, requestedBy, requestedChannel, submissionDate).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString
   }

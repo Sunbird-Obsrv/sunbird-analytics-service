@@ -57,9 +57,12 @@ class TestJobAPIService extends BaseSpec  {
 
   "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {
 
-    EmbeddedPostgresql.execute(
+      val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+      val requestId1 = jobApiServiceActorRef.underlyingActor._getRequestId("client-1", "assessment-score-report", "test-1", "in.ekstep", submissionDate)
+
+      EmbeddedPostgresql.execute(
       s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
-        "requested_channel", "dt_job_submitted", "encryption_key") values ('client-1:in.ekstep', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
+        "requested_channel", "dt_job_submitted", "encryption_key") values ('client-1:in.ekstep', '$requestId1', 'assessment-score-report',
         'SUBMITTED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', 'xxxx-xxxx');""")
 
@@ -68,7 +71,7 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
     doNothing().when(mockStorageService).closeContext()
 
-    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-1:in.ekstep", "462CDD1241226D5CA2E777DA522691EF")
+    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-1:in.ekstep", requestId1)
     res.responseCode should be("OK")
     val stringResponse = JSONUtils.serialize(res.result.get)
     stringResponse.contains("encryption_key") should be(false)
@@ -153,15 +156,18 @@ class TestJobAPIService extends BaseSpec  {
 
   it should "re-submit job if it is already completed" in {
 
+    val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+    val requestId1 = jobApiServiceActorRef.underlyingActor._getRequestId("client-3", "assessment-score-report", "test-1", "in.ekstep", submissionDate)
+    val requestId2 = jobApiServiceActorRef.underlyingActor._getRequestId("client-3", "assessment-score-report", "test-2", "in.ekstep", submissionDate)
     EmbeddedPostgresql.execute(
       s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
-        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', '17CB7C4AC4202ABC0605407058EE0504', 'assessment-score-report',
-        'SUCCESS',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', '$requestId1', 'assessment-score-report',
+        'FAILED',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"https://sunbird.org/test/signed/file1.csv", "https://sunbird.org/test/signed/file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10', '0');""")
 
     EmbeddedPostgresql.execute(
       s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
-        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', 'C5A633CED379CAEF0BD339E3F0EE80E0', 'assessment-score-report',
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('client-3:in.ekstep', '$requestId2', 'assessment-score-report',
         'SUCCESS',  '{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
         'test-2', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"https://sunbird.org/test/signed/file1.csv", "https://sunbird.org/test/signed/file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10', '0');""")
 
@@ -170,13 +176,12 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
     doNothing().when(mockStorageService).closeContext()
 
-    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-3:in.ekstep", "17CB7C4AC4202ABC0605407058EE0504")
+    val res = jobApiServiceActorRef.underlyingActor.getDataRequest("client-3:in.ekstep", requestId1)
     res.responseCode should be("OK")
     val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res.result.get))
     responseData.downloadUrls.get.size should be(2)
-    responseData.status should be("SUCCESS")
+    responseData.status should be("FAILED")
     responseData.tag should be("client-3:in.ekstep")
-    responseData.attempts should be(0)
 
     // without encryption key
     val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-1","dataset":"assessment-score-report","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
@@ -185,16 +190,14 @@ class TestJobAPIService extends BaseSpec  {
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
     responseData1.status should be("SUBMITTED")
     responseData1.tag should be("client-3:in.ekstep")
-    responseData1.attempts should be(0)
 
       // with encryption key
     val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"tag":"client-3","requestedBy":"test-2","dataset":"assessment-score-report","encryptionKey":"xxxxx","datasetConfig":{"batchFilters":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"},"outputFormat":"csv"}}"""
     val res2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "in.ekstep")
     res2.responseCode should be("OK")
-    val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res1.result.get))
-    responseData2.status should be("SUBMITTED")
+    val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(res2.result.get))
+    responseData2.status should be("SUCCESS")
     responseData2.tag should be("client-3:in.ekstep")
-    responseData2.attempts should be(0)
 
   }
 

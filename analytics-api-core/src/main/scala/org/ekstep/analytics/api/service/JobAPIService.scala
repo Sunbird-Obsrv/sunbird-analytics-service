@@ -119,7 +119,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val appendedTag = tag + ":" + channel
     val jobId = body.request.dataset.getOrElse("")
     val requestedBy = body.request.requestedBy.getOrElse("")
-    val requestId = _getRequestId(tag, jobId, requestedBy, channel)
+    val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+    val requestId = _getRequestId(tag, jobId, requestedBy, channel, submissionDate)
     val requestConfig = body.request.datasetConfig.getOrElse(Map.empty)
     val encryptionKey = body.request.encryptionKey
     val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
@@ -158,7 +159,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     calendar.add(Calendar.MINUTE, expiry)
     val expiryTime = calendar.getTime.getTime
 
-    val processed = List(JobStatus.COMPLETED.toString(), JobStatus.FAILED.toString).contains(job.status)
+    val processed = List("SUCCESS", "FAILED").contains(job.status)
     val djs = job.dt_job_submitted
     val djc = job.dt_job_completed
     val stats = if (processed) {
@@ -166,7 +167,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else Option(JobStats(job.dt_job_submitted))
     val request = job.request_data
     val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
-    val downloadUrls = if(job.download_urls.nonEmpty) job.download_urls.get.map{f =>
+    val downloadUrls = if(processed && job.download_urls.nonEmpty) job.download_urls.get.map{f =>
       val values = f.split("/").toList.drop(4) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
       val objectKey = values.mkString("/")
       APILogger.log("Getting signed URL for - " + objectKey)
@@ -185,8 +186,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       postgresDBUtil.getJobRequest(jobConfig.request_id, jobConfig.tag).get
    }
 
-  private def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String): String = {
-    val key = Array(tag, jobId, requestedBy, requestedChannel).mkString("|")
+  private def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String): String = {
+    val key = Array(tag, jobId, requestedBy, requestedChannel, submissionDate).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString
   }
   private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {

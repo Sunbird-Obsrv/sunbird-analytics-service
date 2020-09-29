@@ -98,11 +98,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
-      val expiryTimeInSeconds = expiryTime / 1000
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
           val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
-          (dateKey, storageService.getSignedURL(bucket, key, Option(expiryTimeInSeconds.toInt)))
+          (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
         }
         val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
@@ -158,7 +157,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MINUTE, expiry)
     val expiryTime = calendar.getTime.getTime
-    val expiryTimeInSeconds = expiryTime / 1000
 
     val processed = List(JobStatus.COMPLETED.toString(), JobStatus.FAILED.toString).contains(job.status)
     val djs = job.dt_job_submitted
@@ -172,7 +170,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val values = f.split("/").toList.drop(4) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
       val objectKey = values.mkString("/")
       APILogger.log("Getting signed URL for - " + objectKey)
-      storageService.getSignedURL(bucket, objectKey, Option(expiryTimeInSeconds.toInt))
+      storageService.getSignedURL(bucket, objectKey, Option((expiry * 60)))
     } else List[String]()
     JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(Long.box(expiryTime)), job.err_message)
   }

@@ -124,7 +124,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val requestConfig = body.request.datasetConfig.getOrElse(Map.empty)
     val encryptionKey = body.request.encryptionKey
     val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
-    val iterationCount = if (job.nonEmpty) job.get.iteration.getOrElse(0) + 1 else 0
+    val iterationCount = if (job.nonEmpty) job.get.iteration.getOrElse(0) else 0
     val jobConfig = JobConfig(appendedTag, requestId, jobId, JobStatus.SUBMITTED.toString(), requestConfig, requestedBy, channel, DateTime.now(), encryptionKey, Option(iterationCount))
 
     if (job.isEmpty) {

@@ -125,10 +125,6 @@ case class ExperimentRequestBody(id: String, ver: String, ts: String, request: E
 case class ExperimentCreateRequest(expId: String, name: String, createdBy: String, description: String,
 								   criteria: Map[String, AnyRef], data: Map[String, AnyRef])
 
-case class ExperimentDefinition(expId: String, expName: String, expDescription: String, createdBy: String,
-								updatedBy: String, udpatedOn: Option[DateTime], createdOn: Option[DateTime], criteria: String,
-								data: String, status: Option[String], status_msg: Option[String], stats: Option[Map[String, Long]])
-
 case class ExperimentParams(resmsgid: String, msgid: String, err: String, status: String, errorMsg: Map[String, String])
 
 case class ExperimentBodyResponse(id: String, ver: String, ts: String, params: ExperimentParams, responseCode: String, result: Option[Map[String, AnyRef]])

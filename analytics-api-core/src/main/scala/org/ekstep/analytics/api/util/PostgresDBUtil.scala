@@ -100,6 +100,38 @@ class PostgresDBUtil {
         query.update().apply().toString
     }
 
+    //Experiment
+    def getExperimentDefinition(expId: String): Option[ExperimentDefinition] = {
+        sql"""select * from ${ExperimentDefinition.table} where exp_id = $expId""".map(rs => ExperimentDefinition(rs)).first().apply()
+    }
+
+    def saveExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
+
+        expRequests.map { expRequest =>
+            val stats = JSONUtils.serialize(expRequest.stats.getOrElse(Map()))
+            val query = sql"""insert into ${ExperimentDefinition.table} ("exp_id", "exp_name", "status", "exp_description", "exp_data",
+                  "updated_on", "created_by", "updated_by", "created_on", "status_message", "criteria", "stats") values
+              (${expRequest.exp_id}, ${expRequest.exp_name}, ${expRequest.status.get}, ${expRequest.exp_description},
+              ${expRequest.exp_data}, ${expRequest.updated_on.get}, ${expRequest.created_by}, ${expRequest.updated_by},
+              ${expRequest.created_on.get}, ${expRequest.status_message.get}, ${expRequest.criteria}, CAST($stats AS JSON))"""
+            query.update().apply().toString
+        }
+    }
+
+    def updateExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
+
+        expRequests.map { expRequest =>
+            val stats = JSONUtils.serialize(expRequest.stats.getOrElse(Map()))
+            val query = sql"""update ${ExperimentDefinition.table} set
+              exp_name =${expRequest.exp_name}, status =${expRequest.status.get}, exp_description =${expRequest.exp_description},
+              exp_data =${expRequest.exp_data}, updated_on =${expRequest.updated_on.get}, created_by =${expRequest.created_by},
+              updated_by =${expRequest.updated_by}, created_on =${expRequest.created_on.get}, status_message =${expRequest.status_message.get},
+              criteria =${expRequest.criteria}, stats =CAST($stats AS JSON)
+              where exp_id =${expRequest.exp_id}"""
+            query.update().apply().toString
+        }
+    }
+
     def checkConnection = {
         try {
             val conn = ConnectionPool.borrow()
@@ -214,5 +246,33 @@ object JobRequest extends SQLSyntaxSupport[JobRequest] {
         rs.longOpt("execution_time"),
         rs.stringOpt("err_message"),
         rs.intOpt("iteration")
+    )
+}
+
+case class ExperimentDefinition(exp_id: String, exp_name: String, exp_description: String, created_by: String,
+                                updated_by: String, updated_on: Option[DateTime], created_on: Option[DateTime], criteria: String,
+                                exp_data: String, status: Option[String], status_message: Option[String], stats: Option[Map[String, Long]]) {
+    def this() = this("", "", "", "", "", None, None, "", "", None, None, None)
+}
+
+object ExperimentDefinition extends SQLSyntaxSupport[ExperimentDefinition] {
+    override val tableName = AppConfig.getString("postgres.table.experiment_definition.name")
+    override val columns = Seq("exp_id", "exp_name", "exp_description", "created_by", "updated_by", "updated_on",
+        "created_on", "criteria", "exp_data", "status", "status_message", "stats")
+    override val useSnakeCaseColumnName = false
+
+    def apply(rs: WrappedResultSet) = new ExperimentDefinition(
+        rs.string("exp_id"),
+        rs.string("exp_name"),
+        rs.string("exp_description"),
+        rs.string("created_by"),
+        rs.string("updated_by"),
+        if(rs.timestampOpt("updated_on").nonEmpty) Option(new DateTime(rs.timestampOpt("updated_on").get.getTime)) else None,
+        if(rs.timestampOpt("created_on").nonEmpty) Option(new DateTime(rs.timestampOpt("created_on").get.getTime)) else None,
+        rs.string("criteria"),
+        rs.string("exp_data"),
+        rs.stringOpt("status"),
+        rs.stringOpt("status_message"),
+        if(rs.stringOpt("stats").nonEmpty) Option(JSONUtils.deserialize[Map[String, Long]](rs.stringOpt("stats").get)) else None
     )
 }

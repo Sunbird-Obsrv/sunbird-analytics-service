@@ -2,7 +2,6 @@ package org.ekstep.analytics.api.service
 
 import javax.inject.Singleton
 import org.ekstep.analytics.api.util.CommonUtil
-import org.ekstep.analytics.api.util.CassandraUtil
 import org.ekstep.analytics.api.util.ElasticsearchService
 import org.ekstep.analytics.api.util.JSONUtils
 import org.ekstep.analytics.api.util.PostgresDBUtil
@@ -28,18 +27,6 @@ class HealthCheckAPIService {
         JSONUtils.serialize(response);
     }
 
-    private def checkCassandraConnection(): Boolean = {
-        try {
-            CassandraUtil.checkCassandraConnection
-        } catch {
-            // $COVERAGE-OFF$ Disabling scoverage as the below code cannot be covered
-            // TODO: Need to get confirmation from amit.
-            case ex: Exception =>
-                false
-            // $COVERAGE-ON$    
-        }
-    }
-
     private def checkRedisConnection(): Boolean = {
         redisUtil.checkConnection
     }
@@ -56,11 +43,10 @@ class HealthCheckAPIService {
 
     private def getChecks(): Array[ServiceHealthReport] = {
         try {
-            val cassandraStatus = ServiceHealthReport("Cassandra Database", checkCassandraConnection())
             val postgresStatus = ServiceHealthReport("Postgres Database", checkPostgresConnection())
             val redisStatus = ServiceHealthReport("Redis Database", checkRedisConnection())
             val ESStatus = ServiceHealthReport("Elasticsearch Database", checkElasticsearchConnection())
-            Array(cassandraStatus, postgresStatus, redisStatus, ESStatus);
+            Array(postgresStatus, redisStatus, ESStatus);
         } catch {
             // $COVERAGE-OFF$ Disabling scoverage as the below code cannot be covered
             case ex: Exception =>

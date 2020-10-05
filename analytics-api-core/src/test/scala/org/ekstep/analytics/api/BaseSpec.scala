@@ -4,7 +4,6 @@ import org.apache.commons.lang3.StringUtils
 import org.cassandraunit.CQLDataLoader
 import org.cassandraunit.dataset.cql.FileCQLDataSet
 import org.cassandraunit.utils.EmbeddedCassandraServerHelper
-import org.ekstep.analytics.api.util.CassandraUtil
 import org.ekstep.analytics.api.util.JSONUtils
 import org.ekstep.analytics.framework.conf.AppConf
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
@@ -17,28 +16,6 @@ import org.scalatestplus.mockito.MockitoSugar
 class BaseSpec extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
   implicit val config = ConfigFactory.load()
 
-  override def beforeAll() {
-    if (embeddedCassandraMode) {
-      System.setProperty("cassandra.unsafesystem", "true")
-		  EmbeddedCassandraServerHelper.startEmbeddedCassandra(30000L)
-		  val session = CassandraUtil.session
-		  val dataLoader = new CQLDataLoader(session);
-		  dataLoader.load(new FileCQLDataSet(AppConf.getConfig("cassandra.cql_path"), true, true));
-    }
-	}
-
-	override def afterAll() {
-		if (embeddedCassandraMode) {
-			EmbeddedCassandraServerHelper.cleanEmbeddedCassandra()
-			EmbeddedCassandraServerHelper.stopEmbeddedCassandra()
-		}
-	}
-
-	private def embeddedCassandraMode(): Boolean = {
-		val isEmbedded = AppConf.getConfig("cassandra.service.embedded.enable")
-		StringUtils.isNotBlank(isEmbedded) && StringUtils.equalsIgnoreCase("true", isEmbedded)
-	}
-	
 	def loadFileData[T](file: String)(implicit mf: Manifest[T]): Array[T] = {
         if (file == null) {
           return null

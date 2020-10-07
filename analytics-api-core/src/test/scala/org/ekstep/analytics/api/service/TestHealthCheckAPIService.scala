@@ -30,6 +30,6 @@ class TestHealthCheckAPIService extends BaseSpec {
         
         val result = resp.result.get;
         result.get("name").get should be ("analytics-platform-api")
-        result.get("checks").get.asInstanceOf[List[AnyRef]].length should be (4)
+        result.get("checks").get.asInstanceOf[List[AnyRef]].length should be (3)
     }
 }

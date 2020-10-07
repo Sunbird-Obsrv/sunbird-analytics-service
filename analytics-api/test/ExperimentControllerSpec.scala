@@ -1,12 +1,12 @@
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef}
+import akka.testkit.TestActorRef
 import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.ExperimentController
 import org.ekstep.analytics.api.service.ExperimentAPIService.{CreateExperimentRequest, GetExperimentRequest}
 import org.ekstep.analytics.api.service._
-import org.ekstep.analytics.api.util.{CommonUtil}
+import org.ekstep.analytics.api.util.{CommonUtil, PostgresDBUtil}
 import org.ekstep.analytics.api.{APIIds, ExperimentBodyResponse, ExperimentParams}
 import org.junit.runner.RunWith
 import org.mockito.Mockito.when
@@ -27,9 +27,10 @@ class ExperimentControllerSpec extends FlatSpec with Matchers with BeforeAndAfte
   implicit val timeout: Timeout = 20.seconds
   implicit val mockConfig = mock[Config];
   private val configurationMock = mock[Configuration]
+  private val postgresUtilMock = mock[PostgresDBUtil]
   when(configurationMock.underlying).thenReturn(mockConfig)
 
-  val experimentActor = TestActorRef(new ExperimentAPIService() {
+  val experimentActor = TestActorRef(new ExperimentAPIService(postgresUtilMock) {
     override def receive: Receive = {
       case CreateExperimentRequest(request: String, config: Config) => sender() ! ExperimentBodyResponse("exp1", "1.0", "", ExperimentParams("", "", "", "", Map()), "OK", Option(Map()))
       case GetExperimentRequest(requestId: String, config: Config) => sender() ! CommonUtil.OK(APIIds.EXPERIEMNT_GET_REQUEST, Map())

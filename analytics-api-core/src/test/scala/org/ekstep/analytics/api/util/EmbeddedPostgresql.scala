@@ -23,7 +23,7 @@ object EmbeddedPostgresql {
     val query3 = "CREATE TABLE IF NOT EXISTS consumer_channel(consumer_id VARCHAR(100), channel VARCHAR(20), status INTEGER, created_by VARCHAR(100), created_on TIMESTAMPTZ, updated_on TIMESTAMPTZ)"
     val query4 = "CREATE TABLE IF NOT EXISTS report_config(report_id text, updated_on timestamptz,report_description text,requested_by text,report_schedule text,config json,created_on timestamptz,submitted_on timestamptz,status text,status_msg text,PRIMARY KEY(report_id));"
     val query5 = "CREATE TABLE IF NOT EXISTS job_request(tag VARCHAR(100), request_id VARCHAR(50), job_id VARCHAR(50), status VARCHAR(50), request_data json, requested_by VARCHAR(50), requested_channel VARCHAR(50), dt_job_submitted TIMESTAMP, download_urls text[], dt_file_created TIMESTAMP, dt_job_completed TIMESTAMP, execution_time INTEGER, err_message VARCHAR(100), iteration INTEGER, encryption_key VARCHAR(50), PRIMARY KEY (tag, request_id));"
-    val query6 = "CREATE TABLE IF NOT EXISTS experiment_definition (exp_id VARCHAR(50), created_by VARCHAR(50), created_on TIMESTAMP, criteria VARCHAR(100), exp_data VARCHAR(300), exp_description VARCHAR(200), exp_name VARCHAR(50), stats json, status VARCHAR(50), status_message VARCHAR(50), updated_by VARCHAR(50), updated_on TIMESTAMP, PRIMARY KEY(exp_id));"
+    val query6 = "CREATE TABLE IF NOT EXISTS experiment_definition (exp_id VARCHAR(50), created_by VARCHAR(50), created_on TIMESTAMP, criteria VARCHAR(100), exp_data VARCHAR(300), exp_description VARCHAR(200), exp_name VARCHAR(50), stats VARCHAR(300), status VARCHAR(50), status_message VARCHAR(50), updated_by VARCHAR(50), updated_on TIMESTAMP, PRIMARY KEY(exp_id));"
 
     execute(query1)
     execute(query2)

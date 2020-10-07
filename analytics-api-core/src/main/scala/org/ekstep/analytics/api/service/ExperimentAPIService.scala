@@ -86,7 +86,7 @@ object ExperimentAPIService {
      val stats = expRequest.stats.orNull
      val processed = List(ExperimentStatus.ACTIVE.toString, ExperimentStatus.FAILED.toString).contains(expRequest.status.get.toUpperCase())
      val statsOutput = if (processed && null != stats) {
-       stats
+       JSONUtils.deserialize[Map[String, Long]](stats)
      } else Map[String, Long]()
 
      val experimentRequest = ExperimentCreateRequest(expRequest.exp_id, expRequest.exp_name, expRequest.created_by, expRequest.exp_description,

@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import org.ekstep.analytics.api.service.ExperimentAPIService.CreateExperimentRequest
 import akka.actor.ActorRef
 import org.ekstep.analytics.api.service.ExperimentAPIService.GetExperimentRequest
-import org.ekstep.analytics.api.util.{EmbeddedPostgresql, ExperimentDefinition, PostgresDBUtil}
+import org.ekstep.analytics.api.util.{EmbeddedPostgresql, ExperimentDefinition, JSONUtils, PostgresDBUtil}
 
 class TestExperimentAPIService extends BaseSpec {
 
@@ -31,7 +31,7 @@ class TestExperimentAPIService extends BaseSpec {
 
         // resubmit for failed
         val req = Array(ExperimentDefinition("UR1235", "test_exp", "Test Exp", "Test", "Test1", Option(DateTime.now), Option(DateTime.now),
-          "", "", Option("Failed"), Option(""), Option(Map("one" -> 1L))))
+          "", "", Option("Failed"), Option(""), Option("""{"one":1}""")))
         postgresUtil.saveExperimentDefinition(req)
         val request2 = """{"id":"ekstep.analytics.experiment.create","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"expId":"UR1235","name":"USER_ORG","createdBy":"User1","description":"Experiment to get users to explore page ","criteria":{"type":"user","filters":{"emailVerified":true}},"data":{"startDate":"2021-08-09","endDate":"2021-08-21","key":"/org/profile","client":"portal","modulus":5}}}"""
         val resp = ExperimentAPIService.createRequest(request2, postgresUtil)
@@ -66,7 +66,7 @@ class TestExperimentAPIService extends BaseSpec {
 
     it should "return the experiment for experimentid" in {
         val req = Array(ExperimentDefinition("UR12356", "test_exp", "Test Exp", "Test", "Test1", Option(DateTime.now), Option(DateTime.now),
-          """{"type":"user"}"""", """{"startDate":"2021-08-09","endDate":"2021-08-21","key":"/org/profile","client":"portal","modulus":5}""", Option("Failed"), Option(""), Option(Map("one" -> 1L))))
+          """{"type":"user"}""", """{"startDate":"2021-08-09","endDate":"2021-08-21","key":"/org/profile","client":"portal","modulus":5}""", Option("Failed"), Option(""), Option("""{"one":1}""")))
         postgresUtil.saveExperimentDefinition(req)
         val response = ExperimentAPIService.getExperimentDefinition("UR12356", postgresUtil)
         response.responseCode should be("OK")

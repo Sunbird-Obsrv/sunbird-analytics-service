@@ -123,7 +123,7 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
         val uaspecMap = Classifier.parse(userAgent)
         val parsedUserAgentMap = Map("agent" -> uaspecMap.get("name"), "ver" -> uaspecMap.get("version"),
           "system" -> uaspecMap.get("os"), "raw" -> userAgent)
-        val uaspecStr = JSONUtils.serialize(parsedUserAgentMap).replaceAll("\"", "'")
+        val uaspecStr = JSONUtils.serialize(parsedUserAgentMap)
         uaspecStr
     }
   }
@@ -144,7 +144,7 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
         "state_custom" -> result.location.stateCustom,
         "state_code_custom" -> result.location.stateCodeCustom,
         "district_custom" -> result.location.districtCustom,
-        "device_spec" -> result.device_spec.map(x => JSONUtils.serialize(x.mapValues(_.toString)).replaceAll("\"", "'")).orNull,
+        "device_spec" -> result.device_spec.map(x => JSONUtils.serialize(x.mapValues(_.toString))).orNull,
         "uaspec" -> uaspecStr.orNull,
         "fcm_token" -> result.fcm_token.orNull,
         "producer_id" -> result.producer_id.orNull,

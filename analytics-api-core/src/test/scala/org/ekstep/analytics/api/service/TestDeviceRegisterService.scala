@@ -229,7 +229,7 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
       result.get("continent_name").get should be ("Asia");
       result.get("country_code").get should be ("IN");
       result.get("user_declared_district").get should be ("chennai");
-      result.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+      result.get("uaspec").get should be ("{\"agent\":\"Chrome\",\"ver\":\"70.0.3538.77\",\"system\":\"Mac OSX\",\"raw\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36\"}");
       result.get("city").get should be ("Bangalore");
       result.get("district_custom").get should be ("Bangalore");
       result.get("fcm_token").get should be ("some-token");
@@ -245,13 +245,13 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
         val dp = JSONUtils.deserialize[Map[String, AnyRef]](msg);
         dp.get("country_code").get should be ("IN");
         dp.get("user_declared_district").get should be ("chennai");
-        dp.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+        dp.get("uaspec").get should be ("{\"agent\":\"Chrome\",\"ver\":\"70.0.3538.77\",\"system\":\"Mac OSX\",\"raw\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36\"}");
         dp.get("city").get should be ("Bangalore");
         dp.get("district_custom").get should be ("Bangalore");
         dp.get("fcm_token").get should be ("some-token");
         dp.get("producer_id").get should be ("sunbird.app");
         dp.get("user_declared_state").get should be ("TamilNadu");
-        dp.get("device_spec").get should be ("{'cpu':'abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)','make':'Micromax Micromax A065','os':'Android 4.4.2'}");
+        dp.get("device_spec").get should be ("{\"cpu\":\"abi:  armeabi-v7a  ARMv7 Processor rev 4 (v7l)\",\"make\":\"Micromax Micromax A065\",\"os\":\"Android 4.4.2\"}");
         dp.get("state_custom").get should be ("Karnataka");
       } catch {
         case ex: TimeoutException => Console.println("Kafka timeout has occured");
@@ -284,7 +284,7 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
       result.get("continent_name").get should be ("Asia");
       result.get("country_code").get should be ("IN");
       result.get("user_declared_district") should be (None);
-      result.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+      result.get("uaspec").get should be ("{\"agent\":\"Chrome\",\"ver\":\"70.0.3538.77\",\"system\":\"Mac OSX\",\"raw\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36\"}");
       result.get("city").get should be ("BANGALORE");
       result.get("district_custom").get should be ("Bangalore");
       result.get("fcm_token").get should be ("some-token");
@@ -301,7 +301,7 @@ class TestDeviceRegisterService extends FlatSpec with Matchers with BeforeAndAft
         val dp = JSONUtils.deserialize[Map[String, AnyRef]](msg);
         dp.get("country_code").get should be ("IN");
         dp.get("user_declared_district") should be (None);
-        dp.get("uaspec").get should be ("{'agent':'Chrome','ver':'70.0.3538.77','system':'Mac OSX','raw':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36'}");
+        dp.get("uaspec").get should be ("{\"agent\":\"Chrome\",\"ver\":\"70.0.3538.77\",\"system\":\"Mac OSX\",\"raw\":\"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.77 Safari/537.36\"}");
         dp.get("city").get should be ("BANGALORE");
         dp.get("district_custom").get should be ("Bangalore");
         dp.get("fcm_token").get should be ("some-token");

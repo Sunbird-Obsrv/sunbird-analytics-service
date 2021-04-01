@@ -24,7 +24,7 @@
 	<properties>
 		<elastic4sVersion>6.2.10</elastic4sVersion>
 		<akka.version>2.5.25</akka.version>
-		<jackson.version>2.9.8</jackson.version>
+		<jackson.version>2.12.2</jackson.version>
 	</properties>
 	<dependencies>
 		<dependency>

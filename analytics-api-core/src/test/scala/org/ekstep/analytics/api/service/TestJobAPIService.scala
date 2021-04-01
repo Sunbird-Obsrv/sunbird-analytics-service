@@ -382,6 +382,10 @@ class TestJobAPIService extends BaseSpec  {
     val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
     jobRes.length should be(0)
 
+    result = Await.result((jobApiServiceActorRef ? PublicChannelData("in.ekstep", "raw", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+    result.params.errmsg should be("Date range should be < 10 days")
+
   }
 
   it should "get the public exhaust files for summary rollup data" in {

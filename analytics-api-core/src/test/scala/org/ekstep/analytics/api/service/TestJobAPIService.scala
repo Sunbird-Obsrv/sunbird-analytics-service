@@ -391,12 +391,27 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("in.ekstep/2018-05-20.csv", "in.ekstep/2018-05-22.csv"));
     doNothing().when(mockStorageService).closeContext()
 
-    val resObj = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-25")
-    resObj.responseCode should be("OK")
-    val res = resObj.result.getOrElse(Map())
-    val urls = res.get("files").get.asInstanceOf[List[String]];
-    urls.size should be (2)
-    urls.head should be ("https://cdn.abc.com/ekstep-dev-data-store/in.ekstep/2018-05-20.csv")
+    val resObj1 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-25")
+    resObj1.responseCode should be("OK")
+    val res1 = resObj1.result.getOrElse(Map())
+    val urls1 = res1.get("files").get.asInstanceOf[List[String]];
+    urls1.size should be (2)
+    urls1.head should be ("https://cdn.abc.com/ekstep-dev-data-store/in.ekstep/2018-05-20.csv")
+
+    val resObj2 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "9999-05-20")
+    resObj2.responseCode should be("CLIENT_ERROR")
+    resObj2.params.errmsg should be("'to' should be LESSER OR EQUAL TO today's date..")
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj3 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-26", "2018-05-26")
+    resObj3.responseCode should be("OK")
+    val res3 = resObj3.result.getOrElse(Map())
+    val urls3 = res3.get("files").get.asInstanceOf[List[String]];
+    urls3.size should be (0)
 
   }
 }

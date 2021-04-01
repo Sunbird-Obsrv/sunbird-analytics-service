@@ -105,6 +105,19 @@ class JobController @Inject() (
     }
   }
 
+  def getPublicExhaust(datasetId: String) = Action.async { request: Request[AnyContent] =>
+
+    val since = request.getQueryString("since").getOrElse("")
+    val from = request.getQueryString("from").getOrElse("")
+    val to = request.getQueryString("to").getOrElse("")
+
+    val channelId = request.headers.get("X-Channel-ID").getOrElse("")
+    val res = ask(jobAPIActor, PublicChannelData(channelId, datasetId, from, to, since, config)).mapTo[Response]
+      res.map { x =>
+        result(x.responseCode, JSONUtils.serialize(x))
+      }
+  }
+
   private def errResponse(msg: String, apiId: String, responseCode: String): Future[Result] = {
      val res = CommonUtil.errorResponse(apiId, msg, responseCode)
      Future {

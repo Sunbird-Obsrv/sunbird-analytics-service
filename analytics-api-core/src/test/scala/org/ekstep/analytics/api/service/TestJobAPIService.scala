@@ -383,4 +383,20 @@ class TestJobAPIService extends BaseSpec  {
     jobRes.length should be(0)
 
   }
+
+  it should "get the public exhaust files for summary rollup data" in {
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("in.ekstep/2018-05-20.csv", "in.ekstep/2018-05-22.csv"));
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-25")
+    resObj.responseCode should be("OK")
+    val res = resObj.result.getOrElse(Map())
+    val urls = res.get("files").get.asInstanceOf[List[String]];
+    urls.size should be (2)
+    urls.head should be ("https://cdn.abc.com/ekstep-dev-data-store/in.ekstep/2018-05-20.csv")
+
+  }
 }

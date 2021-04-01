@@ -31,6 +31,8 @@ case class DataRequestList(tag: String, limit: Int, config: Config)
 
 case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
 
+case class PublicChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
+
 class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   implicit val fc = new FrameworkContext();
@@ -40,6 +42,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
     case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
     case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
+    case PublicChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getPublicChannelData(channel, eventType, from, to, since)(config, fc)
   }
 
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
@@ -111,6 +114,40 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else {
       APILogger.log("Request Validation FAILED")
       CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+    }
+  }
+
+  def getPublicChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
+
+    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
+    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+
+    val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
+    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
+      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
+      val bucket = datasetConfig.get("bucket").toString
+      val basePrefix = datasetConfig.get("basePrefix").toString
+      val prefix = basePrefix + datasetId + "/" + channel + "/"
+      APILogger.log("prefix: " + prefix)
+
+      val storageKey = config.getString("storage.key.config")
+      val storageSecret = config.getString("storage.secret.config")
+      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
+      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
+      if (listObjs.size > 0) {
+        val res = for (key <- listObjs) yield {
+          val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
+          (dateKey, getCDNURL(bucket, key))
+        }
+        val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles))
+      } else {
+        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map()))
+      }
+    } else {
+      APILogger.log("Request Validation FAILED")
+      CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
     }
   }
 
@@ -201,5 +238,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     else if (10 < days)
       return Map("status" -> "false", "message" -> "Date range should be < 10 days")
     else return Map("status" -> "true")
+  }
+
+  def getCDNURL(bucket: String, key: String)(implicit config: Config): String = {
+    val cdnHost = config.getString("cdn.host")
+    cdnHost + bucket + "/" + key
   }
 }

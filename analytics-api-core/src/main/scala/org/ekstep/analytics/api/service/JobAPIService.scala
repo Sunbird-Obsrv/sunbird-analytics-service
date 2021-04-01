@@ -81,33 +81,19 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
 
-    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
-    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+    val objectLists = getExhaustObjectKeys(channel, datasetId, from, to,since)
+    val isValid = objectLists._1
+    val listObjs = objectLists._2
 
-    val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
-      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
-      val bucket = datasetConfig.get("bucket").toString
-      val basePrefix = datasetConfig.get("basePrefix").toString
-      val prefix = basePrefix + datasetId + "/" + channel + "/"
-      APILogger.log("prefix: " + prefix)
-
-      val storageKey = config.getString("storage.key.config")
-      val storageSecret = config.getString("storage.secret.config")
-      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
-      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
+
       if (listObjs.size > 0) {
-        val res = for (key <- listObjs) yield {
-          val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
-          (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
-        }
-        val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
+        val periodWiseFiles = listObjs.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> listObjs.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
       } else {
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map(), "expiresAt" -> Long.box(0l)))
       }
@@ -119,6 +105,25 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   def getPublicChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
 
+    val objectLists = getExhaustObjectKeys(channel, datasetId, from, to, since, true)
+    val isValid = objectLists._1
+    val listObjs = objectLists._2
+
+    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+      if (listObjs.size > 0) {
+        val periodWiseFiles = listObjs.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> listObjs.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles))
+      } else {
+        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map()))
+      }
+    } else {
+      APILogger.log("Request Validation FAILED")
+      CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+    }
+  }
+
+  private def getExhaustObjectKeys(channel: String, datasetId: String, from: String, to: String, since: String = "", isPublic: Boolean = false)(implicit config: Config, fc: FrameworkContext): (Map[String, String], List[(String, String)]) = {
+
     val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
     val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
 
@@ -138,17 +143,18 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
           val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
-          (dateKey, getCDNURL(bucket, key))
+          if (isPublic) {
+            (dateKey, getCDNURL(bucket, key))
+          }
+          else {
+            val expiry = config.getInt("channel.data_exhaust.expiryMins")
+            (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
+          }
         }
-        val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
-        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles))
-      } else {
-        CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map()))
+        return (isValid, res)
       }
-    } else {
-      APILogger.log("Request Validation FAILED")
-      CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
     }
+    return (isValid, List())
   }
 
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config, fc: FrameworkContext): JobRequest = {

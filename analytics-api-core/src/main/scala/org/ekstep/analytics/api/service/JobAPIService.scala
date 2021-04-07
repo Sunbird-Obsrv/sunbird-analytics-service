@@ -31,7 +31,7 @@ case class DataRequestList(tag: String, limit: Int, config: Config)
 
 case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
 
-case class PublicChannelData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config)
+case class PublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config)
 
 class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
@@ -42,7 +42,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
     case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
     case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
-    case PublicChannelData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config) => sender() ! getPublicChannelData(datasetId, from, to, since, date, dateRange)(config, fc)
+    case PublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
   }
 
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
@@ -103,7 +103,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     }
   }
 
-  def getPublicChannelData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String)(implicit config: Config, fc: FrameworkContext): Response = {
+  def getPublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String)(implicit config: Config, fc: FrameworkContext): Response = {
 
     val isDatasetValid = _validateDataset(datasetId)
 

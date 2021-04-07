@@ -113,7 +113,7 @@ class JobController @Inject() (
     val date = request.getQueryString("date").getOrElse("")
     val dateRange = request.getQueryString("date_range").getOrElse("")
 
-    val res = ask(jobAPIActor, PublicChannelData(datasetId, from, to, since, date, dateRange, config)).mapTo[Response]
+    val res = ask(jobAPIActor, PublicData(datasetId, from, to, since, date, dateRange, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }

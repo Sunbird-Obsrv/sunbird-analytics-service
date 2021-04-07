@@ -382,7 +382,7 @@ class TestJobAPIService extends BaseSpec  {
     val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
     jobRes.length should be(0)
 
-    result = Await.result((jobApiServiceActorRef ? PublicChannelData("in.ekstep", "raw", fromDate, toDate, "", config)).mapTo[Response], 20.seconds)
+    result = Await.result((jobApiServiceActorRef ? PublicChannelData("summary-rollup", fromDate, toDate, "", "", "", config)).mapTo[Response], 20.seconds)
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 10 days")
 
@@ -390,19 +390,22 @@ class TestJobAPIService extends BaseSpec  {
 
   it should "get the public exhaust files for summary rollup data" in {
 
+    val fromDate = CommonUtil.getPreviousDay()
+    val toDate = CommonUtil.getToday()
+
     reset(mockStorageService)
     when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
-    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List("in.ekstep/2018-05-20.csv", "in.ekstep/2018-05-22.csv"));
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List(s"summary-rollup/$fromDate.csv"));
     doNothing().when(mockStorageService).closeContext()
 
-    val resObj1 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "2018-05-25")
+    val resObj1 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", fromDate, toDate, "", "", "")
     resObj1.responseCode should be("OK")
     val res1 = resObj1.result.getOrElse(Map())
     val urls1 = res1.get("files").get.asInstanceOf[List[String]];
-    urls1.size should be (2)
-    urls1.head should be ("https://cdn.abc.com/ekstep-dev-data-store/in.ekstep/2018-05-20.csv")
+    urls1.size should be (1)
+    urls1.head should be (s"https://cdn.abc.com/ekstep-dev-data-store/summary-rollup/$fromDate.csv")
 
-    val resObj2 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-20", "9999-05-20")
+    val resObj2 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", fromDate, "9999-05-20", "", "", "")
     resObj2.responseCode should be("CLIENT_ERROR")
     resObj2.params.errmsg should be("'to' should be LESSER OR EQUAL TO today's date..")
 
@@ -411,11 +414,55 @@ class TestJobAPIService extends BaseSpec  {
     when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List());
     doNothing().when(mockStorageService).closeContext()
 
-    val resObj3 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("in.ekstep", "summary-rollup", "2018-05-26", "2018-05-26")
+    // Test for no files available condition
+    val resObj3 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", fromDate, toDate, "", "", "")
     resObj3.responseCode should be("OK")
     val res3 = resObj3.result.getOrElse(Map())
-    val urls3 = res3.get("files").get.asInstanceOf[List[String]];
-    urls3.size should be (0)
+    res3.get("message").get should be("Files are not available for requested date. Might not yet generated. Please come back later")
+
+    // Test for invalid datasetId
+    val resObj4 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("telemetry-rollup", fromDate, toDate, "", "", "")
+    resObj4.responseCode should be("CLIENT_ERROR")
+    resObj4.params.errmsg should be("Provided dataset is invalid. Please use any one from this list - [summary-rollup]")
+
+    // Test for older date range
+    val resObj5 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", "2010-05-26", "2010-05-26", "", "", "")
+    resObj5.responseCode should be("CLIENT_ERROR")
+    resObj5.params.errmsg should be("Date range cannot be older than 2 months")
+
+    // Test for provided date field
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List(s"summary-rollup/$fromDate.csv"));
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj6 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", "", "", "", fromDate, "")
+    resObj6.responseCode should be("OK")
+    val res6 = resObj6.result.getOrElse(Map())
+    val urls6 = res6.get("files").get.asInstanceOf[List[String]];
+    urls6.size should be (1)
+    urls6.head should be (s"https://cdn.abc.com/ekstep-dev-data-store/summary-rollup/$fromDate.csv")
+
+    // Test for provided date_range field
+    val from = CommonUtil.getPreviousDay()
+    val to = CommonUtil.dateFormat.print(new DateTime().minusDays(2))
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.searchObjectkeys(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(List(s"summary-rollup/$from.csv", s"summary-rollup/$to.csv"));
+    doNothing().when(mockStorageService).closeContext()
+
+    val resObj7 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", "", "", "", "", "LAST_2_DAYS")
+    resObj7.responseCode should be("OK")
+    val res7 = resObj7.result.getOrElse(Map())
+    val urls7 = res7.get("files").get.asInstanceOf[List[String]];
+    urls7.size should be (2)
+    urls7.head should be (s"https://cdn.abc.com/ekstep-dev-data-store/summary-rollup/$from.csv")
+
+    // Test for invalid date_range field
+    val resObj8 = jobApiServiceActorRef.underlyingActor.getPublicChannelData("summary-rollup", "", "", "", "", "LAST_20_DAYS")
+    resObj8.responseCode should be("CLIENT_ERROR")
+    resObj8.params.errmsg should be("Provided dateRange LAST_20_DAYS is not valid. Please use any one from this list - List(LAST_DAY, LAST_2_DAYS, LAST_7_DAYS, LAST_14_DAYS, LAST_30_DAYS, LAST_WEEK)")
 
   }
 }

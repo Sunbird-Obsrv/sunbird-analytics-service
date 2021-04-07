@@ -110,9 +110,10 @@ class JobController @Inject() (
     val since = request.getQueryString("since").getOrElse("")
     val from = request.getQueryString("from").getOrElse("")
     val to = request.getQueryString("to").getOrElse("")
+    val date = request.getQueryString("date").getOrElse("")
+    val dateRange = request.getQueryString("date_range").getOrElse("")
 
-    val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    val res = ask(jobAPIActor, PublicChannelData(channelId, datasetId, from, to, since, config)).mapTo[Response]
+    val res = ask(jobAPIActor, PublicChannelData(datasetId, from, to, since, date, dateRange, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }

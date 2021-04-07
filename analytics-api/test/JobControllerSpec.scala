@@ -51,7 +51,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
       }
-      case PublicChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => {
+      case PublicChannelData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map())
       }
     }
@@ -249,7 +249,7 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     reset(cacheUtil);
     reset(mockConfig);
 
-    val result = controller.getPublicExhaust("summary-rollup").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
+    val result = controller.getPublicExhaust("summary-rollup").apply(FakeRequest());
     Helpers.status(result) should be (Helpers.OK)
 
   }

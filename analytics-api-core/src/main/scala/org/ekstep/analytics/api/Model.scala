@@ -144,3 +144,5 @@ case class ReportResponse(reportId: String, reportDescription: String, createdBy
 
 case class ReportFilter(request: ListReportFilter)
 case class ListReportFilter(filters: Map[String,List[String]])
+
+case class DateRange(from: String, to: String)

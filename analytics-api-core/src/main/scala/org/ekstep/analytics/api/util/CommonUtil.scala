@@ -127,20 +127,13 @@ object CommonUtil {
   }
 
   def getDayInterval(count: Int): DateRange = {
-    val endDate = DateTime.now(DateTimeZone.UTC).withTimeAtStartOfDay().plus(offset);
+    val endDate = DateTime.now(DateTimeZone.UTC).plus(offset);
     val startDate = endDate.minusDays(count).toString("yyyy-MM-dd");
     DateRange(startDate, endDate.toString("yyyy-MM-dd"))
   }
 
-  def getMonthInterval(count: Int): DateRange = {
-    val currentDate = DateTime.now(DateTimeZone.UTC).withTimeAtStartOfDay().plus(offset);
-    val startDate = currentDate.minusDays(count * 30).dayOfMonth().withMinimumValue().toString("yyyy-MM-dd");
-    val endDate = currentDate.dayOfMonth().withMinimumValue().toString("yyyy-MM-dd");
-    DateRange(startDate, endDate)
-  }
-
   def getWeekInterval(count: Int): DateRange = {
-    val currentDate = DateTime.now(DateTimeZone.UTC).withTimeAtStartOfDay().plus(offset);
+    val currentDate = DateTime.now(DateTimeZone.UTC).plus(offset);
     val startDate = currentDate.minusDays(count * 7).dayOfWeek().withMinimumValue().toString("yyyy-MM-dd")
     val endDate = currentDate.dayOfWeek().withMinimumValue().toString("yyyy-MM-dd");
     DateRange(startDate, endDate)

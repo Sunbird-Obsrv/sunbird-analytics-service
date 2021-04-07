@@ -43,6 +43,13 @@ class TestCommonUtil extends FlatSpec with Matchers {
         CommonUtil.getPeriod("2020-10-1o") should be (0);
 
         CommonUtil.getPreviousDay() should be (dateFormat.print(new DateTime().minusDays(1)));
+
+        CommonUtil.getIntervalRange("LAST_DAY").from should be (dateFormat.print(new DateTime().minusDays(1)))
+        CommonUtil.getIntervalRange("LAST_7_DAYS").from should be (dateFormat.print(new DateTime().minusDays(7)))
+        CommonUtil.getIntervalRange("LAST_14_DAYS").from should be (dateFormat.print(new DateTime().minusDays(14)))
+        CommonUtil.getIntervalRange("LAST_30_DAYS").from should be (dateFormat.print(new DateTime().minusDays(30)))
+        CommonUtil.getIntervalRange("LAST_WEEK").from should be (dateFormat.print(new DateTime().minusDays(7).dayOfWeek().withMinimumValue()))
+
         
     }
 }

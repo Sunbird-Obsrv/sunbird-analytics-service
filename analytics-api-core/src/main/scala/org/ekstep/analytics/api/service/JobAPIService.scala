@@ -29,9 +29,9 @@ case class GetDataRequest(tag: String, requestId: String, config: Config)
 
 case class DataRequestList(tag: String, limit: Int, config: Config)
 
-case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
+case class ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config)
 
-case class PublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config)
+case class PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config)
 
 class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
@@ -41,8 +41,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config, fc)
     case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
     case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
-    case PublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String, config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
+    case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
   }
 
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
@@ -79,7 +79,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
   }
 
-  def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
+  def getChannelData(channel: String, datasetId: String, from: Option[String], to: Option[String], since: Option[String] = None)(implicit config: Config, fc: FrameworkContext): Response = {
 
     val objectLists = getExhaustObjectKeys(Option(channel), datasetId, from, to,since)
     val isValid = objectLists._1
@@ -103,21 +103,21 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     }
   }
 
-  def getPublicData(datasetId: String, from: String, to: String, since: String, date: String, dateRange: String)(implicit config: Config, fc: FrameworkContext): Response = {
+  def getPublicData(datasetId: String, from: Option[String] = None, to: Option[String] = None, since: Option[String] = None, date: Option[String] = None, dateRange: Option[String] = None)(implicit config: Config, fc: FrameworkContext): Response = {
 
     val isDatasetValid = _validateDataset(datasetId)
 
     if ("true".equalsIgnoreCase(isDatasetValid.getOrElse("status", "false"))) {
-      val dates: Option[DateRange] = if (dateRange.nonEmpty) Option(CommonUtil.getIntervalRange(dateRange)) else None
+      val dates: Option[DateRange] = if (dateRange.nonEmpty) Option(CommonUtil.getIntervalRange(dateRange.get)) else None
 
       if (dates.nonEmpty && dates.get.from.isEmpty) {
         APILogger.log("Request Validation FAILED for data range field")
         val availableIntervals = CommonUtil.getAvailableIntervals()
-        CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, s"Provided dateRange $dateRange is not valid. Please use any one from this list - $availableIntervals", ResponseCode.CLIENT_ERROR.toString)
+        CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, s"Provided dateRange ${dateRange.get} is not valid. Please use any one from this list - $availableIntervals", ResponseCode.CLIENT_ERROR.toString)
       }
       else {
-        val computedFrom = if (dates.nonEmpty) dates.get.from else if (date.nonEmpty) date else from
-        val computedTo =  if (dates.nonEmpty) dates.get.to else if (date.nonEmpty) date else to
+        val computedFrom = if (dates.nonEmpty) Option(dates.get.from) else if (date.nonEmpty) date else from
+        val computedTo =  if (dates.nonEmpty) Option(dates.get.to) else if (date.nonEmpty) date else to
 
         val objectLists = getExhaustObjectKeys(None, datasetId, computedFrom, computedTo, since, true)
         val isValid = objectLists._1
@@ -143,10 +143,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   }
 
-  private def getExhaustObjectKeys(channel: Option[String], datasetId: String, from: String, to: String, since: String = "", isPublic: Boolean = false)(implicit config: Config, fc: FrameworkContext): (Map[String, String], List[(String, String)]) = {
+  private def getExhaustObjectKeys(channel: Option[String], datasetId: String, from: Option[String], to: Option[String], since: Option[String] = None, isPublic: Boolean = false)(implicit config: Config, fc: FrameworkContext): (Map[String, String], List[(String, String)]) = {
 
-    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
-    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+    val fromDate = if (since.nonEmpty) since.get else if (from.nonEmpty) from.get else CommonUtil.getPreviousDay()
+    val toDate = if (to.nonEmpty) to.get else CommonUtil.getToday()
 
     val isValid = _validateRequest(channel, datasetId, fromDate, toDate, isPublic)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {

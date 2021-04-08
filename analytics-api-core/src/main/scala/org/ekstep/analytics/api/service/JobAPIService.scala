@@ -157,15 +157,15 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val prefix = if(channel.isDefined) basePrefix + datasetId + "/" + channel.get + "/" else basePrefix + datasetId + "/"
       APILogger.log("prefix: " + prefix)
 
-      val storageKey = config.getString("storage.key.config")
-      val storageSecret = config.getString("storage.secret.config")
+      val storageKey = if (isPublic) config.getString("public.storage.key.config") else config.getString("storage.key.config")
+      val storageSecret = if (isPublic) config.getString("public.storage.secret.config") else config.getString("storage.secret.config")
       val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {
           val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
           if (isPublic) {
-            (dateKey, getCDNURL(bucket, key))
+            (dateKey, getCDNURL(key))
           }
           else {
             val expiry = config.getInt("channel.data_exhaust.expiryMins")
@@ -276,8 +276,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     if (validDatasets.contains(datasetId)) Map("status" -> "true") else Map("status" -> "false", "message" -> s"Provided dataset is invalid. Please use any one from this list - $validDatasets")
   }
 
-  def getCDNURL(bucket: String, key: String)(implicit config: Config): String = {
+  def getCDNURL(key: String)(implicit config: Config): String = {
     val cdnHost = config.getString("cdn.host")
-    cdnHost + bucket + "/" + key
+    cdnHost + "/" + key
   }
 }

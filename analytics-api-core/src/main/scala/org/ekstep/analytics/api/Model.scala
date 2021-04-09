@@ -103,7 +103,8 @@ object APIIds {
 	val GENIE_LUNCH = "ekstep.analytics.metrics.genie-launch"
 	val CREATION_RECOMMENDATIONS = "ekstep.analytics.creation.recommendations"
 	val METRICS_API = "org.ekstep.analytics.metrics"
-	val CHANNEL_TELEMETRY_EXHAUST = "org.ekstep.analytics.telemetry"
+	val CHANNEL_TELEMETRY_EXHAUST = "org.ekstep.analytics.telemetry.exhaust"
+	val PUBLIC_TELEMETRY_EXHAUST = "org.ekstep.analytics.public.telemetry.exhaust"
 	val WORKFLOW_USAGE = "ekstep.analytics.metrics.workflow-usage"
 	val DIALCODE_USAGE = "ekstep.analytics.metrics.dialcode-usage"
 	val CLIENT_LOG = "ekstep.analytics.client-log"
@@ -143,3 +144,5 @@ case class ReportResponse(reportId: String, reportDescription: String, createdBy
 
 case class ReportFilter(request: ListReportFilter)
 case class ListReportFilter(filters: Map[String,List[String]])
+
+case class DateRange(from: String, to: String)

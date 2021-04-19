@@ -3,9 +3,11 @@ package org.ekstep.analytics.api.util
 import java.util.Date
 
 import javax.inject._
-import org.ekstep.analytics.api.{JobConfig, ReportRequest}
+import org.apache.spark.sql.catalyst.util.StringUtils
+import org.ekstep.analytics.api.{DatasetConfig, JobConfig, ReportRequest}
 import org.joda.time.DateTime
 import scalikejdbc._
+
 import collection.JavaConverters._
 
 @Singleton
@@ -79,6 +81,14 @@ class PostgresDBUtil {
         sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
     }
 
+    def getDataset(datasetId: String): Option[DatasetRequest] = {
+        sql"""select * from ${DatasetRequest.table} where dataset_id = $datasetId""".map(rs => DatasetRequest(rs)).first().apply()
+    }
+
+    def getDatasetList(): List[DatasetRequest] = {
+        sql"""select * from ${DatasetRequest.table}""".map(rs => DatasetRequest(rs)).list().apply()
+    }
+
     def saveJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
@@ -97,6 +107,26 @@ class PostgresDBUtil {
               requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel},
               encryption_key =${encryptionKey}, iteration =${jobRequest.iteration.getOrElse(0)}
               where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""
+        query.update().apply().toString
+    }
+
+    def saveDatasetRequest(datasetRequest: DatasetConfig) = {
+        val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
+        val query = sql"""insert into ${DatasetRequest.table} ("dataset_id", "dataset_config", "visibility", "dataset_type", "version", "authorized_roles", "available_from", "sample_request", "sample_response") values
+              (${datasetRequest.dataset_id}, CAST($datasetConfig AS JSON), ${datasetRequest.visibility}, ${datasetRequest.dataset_type},
+              ${datasetRequest.version}, concat('{',${datasetRequest.authorized_roles},'}')::text[],
+              ${datasetRequest.available_from}, ${datasetRequest.sample_request.getOrElse("")}, ${datasetRequest.sample_response.getOrElse("")})"""
+        query.update().apply().toString
+    }
+
+    def updateDatasetRequest(datasetRequest: DatasetConfig) = {
+        val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
+        val query = sql"""update ${DatasetRequest.table} set available_from =${datasetRequest.available_from} ,
+              dataset_type =${datasetRequest.dataset_type}, dataset_config =CAST($datasetConfig AS JSON),
+              visibility =${datasetRequest.visibility}, version =${datasetRequest.version},
+              authorized_roles =concat('{',${datasetRequest.authorized_roles},'}')::text[], sample_request=${datasetRequest.sample_request.getOrElse("")},
+              sample_response=${datasetRequest.sample_response.getOrElse("")}
+              where dataset_id =${datasetRequest.dataset_id}"""
         query.update().apply().toString
     }
 
@@ -244,6 +274,31 @@ object JobRequest extends SQLSyntaxSupport[JobRequest] {
         rs.longOpt("execution_time"),
         rs.stringOpt("err_message"),
         rs.intOpt("iteration")
+    )
+}
+
+case class DatasetRequest(dataset_id: String, dataset_config: Map[String, Any], visibility: String, dataset_type: String,
+                          version: String , authorized_roles: List[String], available_from: Option[Long],
+                          sample_request: Option[String], sample_response: Option[String]) {
+    def this() = this("", Map[String, Any](), "", "", "", List(""), None, None, None)
+}
+
+object DatasetRequest extends SQLSyntaxSupport[DatasetRequest] {
+    override val tableName = AppConfig.getString("postgres.table.dataset_metadata.name")
+    override val columns = Seq("dataset_id", "dataset_config", "visibility", "dataset_type", "version",
+        "authorized_roles", "available_from", "sample_request", "sample_response")
+    override val useSnakeCaseColumnName = false
+
+    def apply(rs: WrappedResultSet) = new DatasetRequest(
+        rs.string("dataset_id"),
+        JSONUtils.deserialize[Map[String, Any]](rs.string("dataset_config")),
+        rs.string("visibility"),
+        rs.string("dataset_type"),
+        rs.string("version"),
+        rs.array("authorized_roles").getArray.asInstanceOf[Array[String]].toList,
+        if(rs.timestampOpt("available_from").nonEmpty) Option(rs.timestamp("available_from").getTime) else None,
+        rs.stringOpt("sample_request"),
+        rs.stringOpt("sample_response")
     )
 }
 

@@ -13,7 +13,13 @@ object Model {
 class BaseMetric(val d_period: Option[Int] = None) extends AnyRef with Serializable
 trait Metrics extends BaseMetric with Serializable
 
-case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], outputFormat: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None, tag: Option[String], dataset: Option[String], datasetConfig: Option[Map[String, Any]], requestedBy: Option[String], encryptionKey: Option[String]);
+case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int],
+									 outputFormat: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None,
+									 dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None,
+									 producer: Option[String] = None, tag: Option[String], dataset: Option[String], datasetConfig: Option[Map[String, Any]],
+									 requestedBy: Option[String], encryptionKey: Option[String], datasetType: Option[String], version: Option[String],
+									 visibility: Option[String], authorizedRoles: Option[List[String]], availableFrom: Option[String],
+									 sampleRequest: Option[String], sampleResponse: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)
@@ -114,11 +120,15 @@ object APIIds {
 	val REPORT_SUBMIT_REQUEST = "ekstep.analytics.report.submit"
 	val REPORT_DELETE_REQUEST = "ekstep.analytics.report.delete"
 	val REPORT_UPDATE_REQUEST = "ekstep.analytics.report.update"
+	val ADD_DATASET_REQUEST = "ekstep.analytics.dataset.add"
+	val LIST_DATASET = "ekstep.analytics.dataset.list"
 }
 
 case class JobStats(dtJobSubmitted: Long, dtJobCompleted:  Option[Long] = None, executionTime: Option[Long] = None);
 case class JobResponse(requestId: String, tag: String, dataset: String, requestedBy: String, requestedChannel: String, status: String, lastUpdated: Long, datasetConfig: Map[String, Any], attempts: Int, jobStats: Option[JobStats] = None, downloadUrls: Option[List[String]] = None, expiresAt: Option[Long] = None, statusMessage: Option[String] = None);
+case class DatasetResponse(dataset: String, datasetType: String, datasetConfig: Map[String, Any], visibility: String, version: String, authorizedRoles: List[String], sampleRequest: Option[String] = None, sampleResponse: Option[String] = None, availableFrom: String);
 case class JobConfig(tag: String, request_id: String, dataset: String, status: String, dataset_config: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String], iteration: Option[Int] = Option(0))
+case class DatasetConfig(dataset_id: String, dataset_type: String, dataset_config: Map[String, Any], visibility: String, version: String, authorized_roles: List[String], sample_request: Option[String] = None, sample_response: Option[String] = None, available_from: DateTime = new DateTime())
 
 //Experiment
 case class ExperimentRequestBody(id: String, ver: String, ts: String, request: ExperimentCreateRequest, params: Option[Params])

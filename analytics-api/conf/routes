@@ -33,6 +33,9 @@ GET /request/list/:tag controllers.JobController.getJobList(tag: String)
 GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
 GET /public/dataset/get/:datasetId controllers.JobController.getPublicExhaust(datasetId: String)
 
+POST /dataset/add controllers.JobController.addDataset
+GET /dataset/list controllers.JobController.listDataset
+
 GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: String)
 
 

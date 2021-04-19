@@ -464,4 +464,44 @@ class TestJobAPIService extends BaseSpec  {
     resObj8.params.errmsg should be("Provided dateRange LAST_20_DAYS is not valid. Please use any one from this list - List(LAST_DAY, LAST_2_DAYS, LAST_7_DAYS, LAST_14_DAYS, LAST_30_DAYS, LAST_WEEK)")
 
   }
+
+  it should "add dataset and cover all cases" in {
+
+    val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+
+    EmbeddedPostgresql.execute(
+      s"""insert into dataset_metadata ("dataset_id", "dataset_config", "visibility", "dataset_type", "version",
+          "authorized_roles", "available_from", "sample_request", "sample_response")
+          values ('progress-exhaust', '{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"}',
+           'private', 'On-Demand', '1.0', '{"portal"}', '$submissionDate', '', '');""")
+
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    doNothing().when(mockStorageService).closeContext()
+
+    val request1 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
+    val res1 = jobApiServiceActorRef.underlyingActor.addDataSet(request1)
+    res1.responseCode should be("OK")
+    val stringResponse1 = JSONUtils.serialize(res1.result.get)
+    stringResponse1.contains("Dataset progress-exhaust added successfully") should be(true)
+
+    val request2 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal", "app"],"availableFrom":"2021-01-01"}}"""
+    val res2 = jobApiServiceActorRef.underlyingActor.addDataSet(request2)
+    res2.responseCode should be("OK")
+    val stringResponse2 = JSONUtils.serialize(res2.result.get)
+    stringResponse2.contains("Dataset response-exhaust added successfully") should be(true)
+
+    val request3 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"public-data-exhaust","datasetConfig":{},"datasetType":"Public Data Exhaust","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}"}}"""
+    val res3 = jobApiServiceActorRef.underlyingActor.addDataSet(request3)
+    res3.responseCode should be("OK")
+    val stringResponse3 = JSONUtils.serialize(res3.result.get)
+    stringResponse3.contains("Dataset public-data-exhaust added successfully") should be(true)
+
+    val res4 = jobApiServiceActorRef.underlyingActor.listDataSet()
+    res4.responseCode should be("OK")
+    val resultMap = res4.result.get
+    val datasetsRes = JSONUtils.deserialize[List[DatasetResponse]](JSONUtils.serialize(resultMap.get("datasets").get))
+    datasetsRes.length should be(3)
+
+  }
 }

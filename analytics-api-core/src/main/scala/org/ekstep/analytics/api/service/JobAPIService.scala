@@ -175,7 +175,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
     val isValid = _validateRequest(channel, datasetId, fromDate, toDate, isPublic)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
-      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
+      val loadConfig = if (isPublic) config.getObject(s"public.data_exhaust.dataset").unwrapped() else config.getObject(s"channel.data_exhaust.dataset").unwrapped()
       val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
       val bucket = datasetConfig.get("bucket").toString
       val basePrefix = datasetConfig.get("basePrefix").toString

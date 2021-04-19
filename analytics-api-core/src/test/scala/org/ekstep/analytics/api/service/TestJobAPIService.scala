@@ -390,6 +390,9 @@ class TestJobAPIService extends BaseSpec  {
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("dataset is empty")
 
+    result = Await.result((jobApiServiceActorRef ? ListDataSet(config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("OK")
+
   }
 
   it should "get the public exhaust files for summary rollup data" in {

@@ -48,8 +48,11 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case DataRequestList(clientKey: String, limit: Int, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
       }
-      case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => {
+      case ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
+      }
+      case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => {
+        sender() ! CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map())
       }
     }
   })
@@ -239,6 +242,16 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     result = controller.getTelemetry("summary-rollup").apply(FakeRequest().withHeaders(("X-Channel-ID", "testChannel")));
     Helpers.status(result) should be (Helpers.OK)
     
+  }
+
+  it should "test get public exhaust API - summary rollup data" in {
+
+    reset(cacheUtil);
+    reset(mockConfig);
+
+    val result = controller.getPublicExhaust("summary-rollup").apply(FakeRequest());
+    Helpers.status(result) should be (Helpers.OK)
+
   }
 
   it should "test refresh cache API" in {

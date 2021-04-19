@@ -3,11 +3,11 @@ package org.ekstep.analytics.api.util
 import java.util.UUID
 
 import org.apache.commons.lang3.StringUtils
-import org.apache.spark.{ SparkConf, SparkContext }
-import org.ekstep.analytics.api.{ ExperimentBodyResponse, ExperimentParams, Params, Range, Response, ResponseCode }
+import org.apache.spark.{SparkConf, SparkContext}
+import org.ekstep.analytics.api.{DateRange, ExperimentBodyResponse, ExperimentParams, Params, Range, Response, ResponseCode}
 import org.ekstep.analytics.framework.conf.AppConf
 import org.joda.time._
-import org.joda.time.format.{ DateTimeFormat, DateTimeFormatter }
+import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 
 /**
  * @author Santhosh
@@ -20,6 +20,7 @@ object CommonUtil {
   @transient val weekPeriodLabel: DateTimeFormatter = DateTimeFormat.forPattern("yyyy-ww").withZone(DateTimeZone.forOffsetHoursMinutes(5, 30));
   @transient val df: DateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss.SSSZZ").withZoneUTC();
   @transient val dateFormat: DateTimeFormatter = DateTimeFormat.forPattern("yyyy-MM-dd");
+  val offset: Long = DateTimeZone.forID("Asia/Kolkata").getOffset(DateTime.now())
 
   def roundDouble(value: Double, precision: Int): Double = {
     BigDecimal(value).setScale(precision, BigDecimal.RoundingMode.HALF_UP).toDouble;
@@ -106,4 +107,35 @@ object CommonUtil {
         field.setAccessible(true)
         map + (field.getName -> field.get(ccObj))
     }
+
+  // parse query interval for public exhaust APIs
+  def getIntervalRange(period: String): DateRange = {
+    // LastDay, LastWeek, LastMonth, Last2Days, Last7Days, Last30Days
+    period match {
+      case "LAST_DAY"    => getDayInterval(1);
+      case "LAST_2_DAYS"  => getDayInterval(2);
+      case "LAST_7_DAYS"  => getDayInterval(7);
+      case "LAST_14_DAYS"  => getDayInterval(14);
+      case "LAST_30_DAYS" => getDayInterval(30);
+      case "LAST_WEEK"   => getWeekInterval(1);
+      case _            => DateRange("", "");
+    }
+  }
+
+  def getAvailableIntervals(): List[String] = {
+    List("LAST_DAY", "LAST_2_DAYS", "LAST_7_DAYS", "LAST_14_DAYS", "LAST_30_DAYS", "LAST_WEEK")
+  }
+
+  def getDayInterval(count: Int): DateRange = {
+    val endDate = DateTime.now(DateTimeZone.UTC).plus(offset);
+    val startDate = endDate.minusDays(count).toString("yyyy-MM-dd");
+    DateRange(startDate, endDate.toString("yyyy-MM-dd"))
+  }
+
+  def getWeekInterval(count: Int): DateRange = {
+    val currentDate = DateTime.now(DateTimeZone.UTC).plus(offset);
+    val startDate = currentDate.minusDays(count * 7).dayOfWeek().withMinimumValue().toString("yyyy-MM-dd")
+    val endDate = currentDate.dayOfWeek().withMinimumValue().toString("yyyy-MM-dd");
+    DateRange(startDate, endDate)
+  }
 }

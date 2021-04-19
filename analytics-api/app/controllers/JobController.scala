@@ -85,9 +85,9 @@ class JobController @Inject() (
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val since = request.getQueryString("since").getOrElse("")
-    val from = request.getQueryString("from").getOrElse("")
-    val to = request.getQueryString("to").getOrElse("")
+    val since = request.getQueryString("since")
+    val from = request.getQueryString("from")
+    val to = request.getQueryString("to")
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
@@ -103,6 +103,20 @@ class JobController @Inject() (
         APILogger.log(checkFlag._2.get)
         errResponse(checkFlag._2.get, APIIds.CHANNEL_TELEMETRY_EXHAUST, ResponseCode.FORBIDDEN.toString)
     }
+  }
+
+  def getPublicExhaust(datasetId: String) = Action.async { request: Request[AnyContent] =>
+
+    val since = request.getQueryString("since")
+    val from = request.getQueryString("from")
+    val to = request.getQueryString("to")
+    val date = request.getQueryString("date")
+    val dateRange = request.getQueryString("date_range")
+
+    val res = ask(jobAPIActor, PublicData(datasetId, from, to, since, date, dateRange, config)).mapTo[Response]
+      res.map { x =>
+        result(x.responseCode, JSONUtils.serialize(x))
+      }
   }
 
   private def errResponse(msg: String, apiId: String, responseCode: String): Future[Result] = {

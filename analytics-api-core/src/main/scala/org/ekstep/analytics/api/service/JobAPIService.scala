@@ -29,7 +29,9 @@ case class GetDataRequest(tag: String, requestId: String, config: Config)
 
 case class DataRequestList(tag: String, limit: Int, config: Config)
 
-case class ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config)
+case class ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config)
+
+case class PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config)
 
 class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
@@ -39,7 +41,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config, fc)
     case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
     case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
-    case ChannelData(channel: String, eventType: String, from: String, to: String, since: String, config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
+    case ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
+    case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
   }
 
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
@@ -76,35 +79,21 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
   }
 
-  def getChannelData(channel: String, datasetId: String, from: String, to: String, since: String = "")(implicit config: Config, fc: FrameworkContext): Response = {
+  def getChannelData(channel: String, datasetId: String, from: Option[String], to: Option[String], since: Option[String] = None)(implicit config: Config, fc: FrameworkContext): Response = {
 
-    val fromDate = if (since.nonEmpty) since else if (from.nonEmpty) from else CommonUtil.getPreviousDay()
-    val toDate = if (to.nonEmpty) to else CommonUtil.getToday()
+    val objectLists = getExhaustObjectKeys(Option(channel), datasetId, from, to,since)
+    val isValid = objectLists._1
+    val listObjs = objectLists._2
 
-    val isValid = _validateRequest(channel, datasetId, fromDate, toDate)
     if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
       val expiry = config.getInt("channel.data_exhaust.expiryMins")
-      val loadConfig = config.getObject(s"channel.data_exhaust.dataset").unwrapped()
-      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
-      val bucket = datasetConfig.get("bucket").toString
-      val basePrefix = datasetConfig.get("basePrefix").toString
-      val prefix = basePrefix + datasetId + "/" + channel + "/"
-      APILogger.log("prefix: " + prefix)
-
-      val storageKey = config.getString("storage.key.config")
-      val storageSecret = config.getString("storage.secret.config")
-      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
-      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       val calendar = Calendar.getInstance()
       calendar.add(Calendar.MINUTE, expiry)
       val expiryTime = calendar.getTime.getTime
+
       if (listObjs.size > 0) {
-        val res = for (key <- listObjs) yield {
-          val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
-          (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
-        }
-        val periodWiseFiles = res.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
-        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> res.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
+        val periodWiseFiles = listObjs.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+        CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> listObjs.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles, "expiresAt" -> Long.box(expiryTime)))
       } else {
         CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("files" -> List(), "periodWiseFiles" -> Map(), "expiresAt" -> Long.box(0l)))
       }
@@ -112,6 +101,81 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       APILogger.log("Request Validation FAILED")
       CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
     }
+  }
+
+  def getPublicData(datasetId: String, from: Option[String] = None, to: Option[String] = None, since: Option[String] = None, date: Option[String] = None, dateRange: Option[String] = None)(implicit config: Config, fc: FrameworkContext): Response = {
+
+    val isDatasetValid = _validateDataset(datasetId)
+
+    if ("true".equalsIgnoreCase(isDatasetValid.getOrElse("status", "false"))) {
+      val dates: Option[DateRange] = if (dateRange.nonEmpty) Option(CommonUtil.getIntervalRange(dateRange.get)) else None
+
+      if (dates.nonEmpty && dates.get.from.isEmpty) {
+        APILogger.log("Request Validation FAILED for data range field")
+        val availableIntervals = CommonUtil.getAvailableIntervals()
+        CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, s"Provided dateRange ${dateRange.get} is not valid. Please use any one from this list - $availableIntervals", ResponseCode.CLIENT_ERROR.toString)
+      }
+      else {
+        val computedFrom = if (dates.nonEmpty) Option(dates.get.from) else if (date.nonEmpty) date else from
+        val computedTo =  if (dates.nonEmpty) Option(dates.get.to) else if (date.nonEmpty) date else to
+
+        val objectLists = getExhaustObjectKeys(None, datasetId, computedFrom, computedTo, since, true)
+        val isValid = objectLists._1
+        val listObjs = objectLists._2
+
+        if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+          if (listObjs.size > 0) {
+            val periodWiseFiles = listObjs.asInstanceOf[List[(String, String)]].groupBy(_._1).mapValues(_.map(_._2))
+            CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("files" -> listObjs.asInstanceOf[List[(String, String)]].map(_._2), "periodWiseFiles" -> periodWiseFiles))
+          } else {
+            CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map("message" -> "Files are not available for requested date. Might not yet generated. Please come back later"))
+          }
+        } else {
+          APILogger.log("Request Validation FAILED")
+          CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, isValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+        }
+      }
+    }
+    else {
+      APILogger.log("Request Validation FAILED for invalid datasetId")
+      CommonUtil.errorResponse(APIIds.PUBLIC_TELEMETRY_EXHAUST, isDatasetValid.getOrElse("message", ""), ResponseCode.CLIENT_ERROR.toString)
+    }
+
+  }
+
+  private def getExhaustObjectKeys(channel: Option[String], datasetId: String, from: Option[String], to: Option[String], since: Option[String] = None, isPublic: Boolean = false)(implicit config: Config, fc: FrameworkContext): (Map[String, String], List[(String, String)]) = {
+
+    val fromDate = if (since.nonEmpty) since.get else if (from.nonEmpty) from.get else CommonUtil.getPreviousDay()
+    val toDate = if (to.nonEmpty) to.get else CommonUtil.getToday()
+
+    val isValid = _validateRequest(channel, datasetId, fromDate, toDate, isPublic)
+    if ("true".equalsIgnoreCase(isValid.getOrElse("status", "false"))) {
+      val loadConfig = if (isPublic) config.getObject(s"public.data_exhaust.dataset").unwrapped() else config.getObject(s"channel.data_exhaust.dataset").unwrapped()
+      val datasetConfig = if (null != loadConfig.get(datasetId)) loadConfig.get(datasetId).asInstanceOf[java.util.Map[String, AnyRef]] else loadConfig.get("default").asInstanceOf[java.util.Map[String, AnyRef]]
+      val bucket = datasetConfig.get("bucket").toString
+      val basePrefix = datasetConfig.get("basePrefix").toString
+      val prefix = if(channel.isDefined) basePrefix + datasetId + "/" + channel.get + "/" else basePrefix + datasetId + "/"
+      APILogger.log("prefix: " + prefix)
+
+      val storageKey = if (isPublic) config.getString("public.storage.key.config") else config.getString("storage.key.config")
+      val storageSecret = if (isPublic) config.getString("public.storage.secret.config") else config.getString("storage.secret.config")
+      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
+      val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
+      if (listObjs.size > 0) {
+        val res = for (key <- listObjs) yield {
+          val dateKey = raw"(\d{4})-(\d{2})-(\d{2})".r.findFirstIn(key).getOrElse("default")
+          if (isPublic) {
+            (dateKey, getCDNURL(key))
+          }
+          else {
+            val expiry = config.getInt("channel.data_exhaust.expiryMins")
+            (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
+          }
+        }
+        return (isValid, res)
+      }
+    }
+    return (isValid, List())
   }
 
   private def upsertRequest(body: RequestBody, channel: String)(implicit config: Config, fc: FrameworkContext): JobRequest = {
@@ -190,16 +254,30 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val key = Array(tag, jobId, requestedBy, requestedChannel, submissionDate).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString
   }
-  private def _validateRequest(channel: String, eventType: String, from: String, to: String)(implicit config: Config): Map[String, String] = {
+  private def _validateRequest(channel: Option[String], datasetId: String, from: String, to: String, isPublic: Boolean = false)(implicit config: Config): Map[String, String] = {
 
-    APILogger.log("Validating Request", Option(Map("channel" -> channel, "eventType" -> eventType, "from" -> from, "to" -> to)))
+    APILogger.log("Validating Request", Option(Map("channel" -> channel, "datasetId" -> datasetId, "from" -> from, "to" -> to)))
     val days = CommonUtil.getDaysBetween(from, to)
+    val expiryMonths = config.getInt("public.data_exhaust.expiryMonths")
+    val maxInterval = if (isPublic) config.getInt("public.data_exhaust.max.interval.days") else 10
     if (CommonUtil.getPeriod(to) > CommonUtil.getPeriod(CommonUtil.getToday))
       return Map("status" -> "false", "message" -> "'to' should be LESSER OR EQUAL TO today's date..")
     else if (0 > days)
       return Map("status" -> "false", "message" -> "Date range should not be -ve. Please check your 'from' & 'to'")
-    else if (10 < days)
-      return Map("status" -> "false", "message" -> "Date range should be < 10 days")
+    else if (maxInterval < days)
+      return Map("status" -> "false", "message" -> s"Date range should be < $maxInterval days")
+    else if (isPublic && (CommonUtil.getPeriod(from) <  CommonUtil.getPeriod(CommonUtil.dateFormat.print(new DateTime().minusMonths(expiryMonths)))))
+      return Map("status" -> "false", "message" -> s"Date range cannot be older than $expiryMonths months")
     else return Map("status" -> "true")
+  }
+
+  def _validateDataset(datasetId: String)(implicit config: Config): Map[String, String] = {
+    val validDatasets = config.getStringList("public.data_exhaust.datasets")
+    if (validDatasets.contains(datasetId)) Map("status" -> "true") else Map("status" -> "false", "message" -> s"Provided dataset is invalid. Please use any one from this list - $validDatasets")
+  }
+
+  def getCDNURL(key: String)(implicit config: Config): String = {
+    val cdnHost = config.getString("cdn.host")
+    cdnHost + "/" + key
   }
 }

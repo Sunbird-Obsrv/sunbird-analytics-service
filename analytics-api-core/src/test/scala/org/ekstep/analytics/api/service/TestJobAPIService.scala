@@ -385,6 +385,11 @@ class TestJobAPIService extends BaseSpec  {
     result.responseCode should be("CLIENT_ERROR")
     result.params.errmsg should be("Date range should be < 30 days")
 
+    val addDatasetRequest = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"datasetConfig":{},"datasetType":"Public Data Exhaust","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}"}}"""
+    result = Await.result((jobApiServiceActorRef ? AddDataSet(addDatasetRequest, config)).mapTo[Response], 20.seconds)
+    result.responseCode should be("CLIENT_ERROR")
+    result.params.errmsg should be("dataset is empty")
+
   }
 
   it should "get the public exhaust files for summary rollup data" in {
@@ -503,5 +508,40 @@ class TestJobAPIService extends BaseSpec  {
     val datasetsRes = JSONUtils.deserialize[List[DatasetResponse]](JSONUtils.serialize(resultMap.get("datasets").get))
     datasetsRes.length should be(3)
 
+    // Missing datasetId
+    val request5 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"datasetConfig":{},"datasetType":"Public Data Exhaust","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}"}}"""
+    val res5 = jobApiServiceActorRef.underlyingActor.addDataSet(request5)
+    res5.responseCode should be("CLIENT_ERROR")
+    res5.params.errmsg should be("dataset is empty")
+
+    // Missing datasetConfig
+    val request6 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
+    val res6 = jobApiServiceActorRef.underlyingActor.addDataSet(request6)
+    res6.responseCode should be("CLIENT_ERROR")
+    res6.params.errmsg should be("datasetConfig is empty")
+
+    // Missing datasetType
+    val request7 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
+    val res7 = jobApiServiceActorRef.underlyingActor.addDataSet(request7)
+    res7.responseCode should be("CLIENT_ERROR")
+    res7.params.errmsg should be("datasetType is empty")
+
+    // Missing version
+    val request8 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","authorizedRoles":["portal","app"],"availableFrom":"2021-01-01"}}"""
+    val res8 = jobApiServiceActorRef.underlyingActor.addDataSet(request8)
+    res8.responseCode should be("CLIENT_ERROR")
+    res8.params.errmsg should be("version is empty")
+
+    // Missing visibility
+    val request9 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","version":"v1","authorizedRoles":["portal","app"],"availableFrom":"2021-01-01"}}"""
+    val res9 = jobApiServiceActorRef.underlyingActor.addDataSet(request9)
+    res9.responseCode should be("CLIENT_ERROR")
+    res9.params.errmsg should be("visibility is empty")
+
+    // Missing authorizedRoles
+    val request10 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","version":"v1","availableFrom":"2021-01-01"}}"""
+    val res10 = jobApiServiceActorRef.underlyingActor.addDataSet(request10)
+    res10.responseCode should be("CLIENT_ERROR")
+    res10.params.errmsg should be("authorizedRoles is empty")
   }
 }

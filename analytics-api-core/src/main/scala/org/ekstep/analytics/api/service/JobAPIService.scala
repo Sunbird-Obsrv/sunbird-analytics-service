@@ -261,8 +261,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   private def _validateDatasetReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
     if (body.request.dataset.isEmpty) {
       Map("status" -> "false", "message" -> "dataset is empty")
-    } else if (body.request.datasetConfig.isEmpty) {
-      Map("status" -> "false", "message" -> "datasetConfig is empty")
     } else if (body.request.datasetType.isEmpty) {
       Map("status" -> "false", "message" -> "datasetType is empty")
     } else if (body.request.version.isEmpty) {

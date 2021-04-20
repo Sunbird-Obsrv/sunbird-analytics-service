@@ -517,12 +517,6 @@ class TestJobAPIService extends BaseSpec  {
     res5.responseCode should be("CLIENT_ERROR")
     res5.params.errmsg should be("dataset is empty")
 
-    // Missing datasetConfig
-    val request6 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
-    val res6 = jobApiServiceActorRef.underlyingActor.addDataSet(request6)
-    res6.responseCode should be("CLIENT_ERROR")
-    res6.params.errmsg should be("datasetConfig is empty")
-
     // Missing datasetType
     val request7 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetConfig":{"batchFilters":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
     val res7 = jobApiServiceActorRef.underlyingActor.addDataSet(request7)

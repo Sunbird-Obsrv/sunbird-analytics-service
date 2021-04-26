@@ -1,5 +1,6 @@
 package org.ekstep.analytics.api.util
 
+import java.sql.{Connection, DriverManager, PreparedStatement, SQLType, Timestamp}
 import java.util.Date
 
 import javax.inject._
@@ -23,6 +24,10 @@ class PostgresDBUtil {
 
     implicit val session: AutoSession = AutoSession
 
+    val db1 = AppConfig.getString("postgres.db")
+    val url1 = AppConfig.getString("postgres.url")
+//    val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+
     def read(sqlString: String): List[ConsumerChannel] = {
         SQL(sqlString).map(rs => ConsumerChannel(rs)).list().apply()
     }
@@ -40,24 +45,43 @@ class PostgresDBUtil {
     }
 
 
-    def saveReportConfig(reportRequest: ReportRequest): String = {
+    def saveReportConfig(reportRequest: ReportRequest) = {
         val config = JSONUtils.serialize(reportRequest.config)
-        sql"""insert into ${ReportConfig.table}(report_id, updated_on, report_description, requested_by,
-             report_schedule, config, created_on, submitted_on, status, status_msg) values
-              (${reportRequest.reportId}, ${new Date()}, ${reportRequest.description},
-              ${reportRequest.createdBy},${reportRequest.reportSchedule} , CAST($config AS JSON),
-              ${new Date()}, ${new Date()} ,'ACTIVE', 'REPORT SUCCESSFULLY ACTIVATED')""".update().apply().toString
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = ReportConfig.tableName
+        val insertQry = s"INSERT INTO $table (report_id, updated_on, report_description, requested_by, report_schedule, config, created_on, submitted_on, status, status_msg) values (?, ?, ?, ?, ?, ?::json, ?, ?, ?, ?)";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setString(1, reportRequest.reportId);
+        pstmt.setTimestamp(2, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(3, reportRequest.description);
+        pstmt.setString(4, reportRequest.createdBy);
+        pstmt.setString(5, reportRequest.reportSchedule);
+        pstmt.setString(6, config);
+        pstmt.setTimestamp(7, new Timestamp(new DateTime().getMillis));
+        pstmt.setTimestamp(8, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(9, "ACTIVE");
+        pstmt.setString(10, "REPORT SUCCESSFULLY ACTIVATED");
+        pstmt.execute()
+
+        dbc.close()
     }
 
 
-    def updateReportConfig(reportId: String, reportRequest: ReportRequest): String = {
+    def updateReportConfig(reportId: String, reportRequest: ReportRequest) = {
         val config = JSONUtils.serialize(reportRequest.config)
-        val q =
-            sql"""update ${ReportConfig.table} set updated_on =${new Date()} ,
-             report_description = ${reportRequest.description}, requested_by = ${reportRequest.createdBy} ,
-             report_schedule = ${reportRequest.reportSchedule} , config = ($config::JSON) ,
-               status = 'ACTIVE' , status_msg = 'REPORT SUCCESSFULLY ACTIVATED'  where report_id =$reportId"""
-        q.update().apply().toString
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = ReportConfig.tableName
+        val insertQry = s"update $table set updated_on = ?, report_description = ?, requested_by = ?, report_schedule = ?, config = ?::JSON , status = 'ACTIVE' , status_msg = 'REPORT SUCCESSFULLY ACTIVATED'  where report_id = ?";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setTimestamp(1, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(2, reportRequest.description);
+        pstmt.setString(3, reportRequest.createdBy);
+        pstmt.setString(4, reportRequest.reportSchedule);
+        pstmt.setString(5, config);
+        pstmt.setString(6, reportId);
+        pstmt.execute()
+
+        dbc.close()
     }
 
     def readReport(reportId: String): Option[ReportConfig] = {
@@ -65,7 +89,15 @@ class PostgresDBUtil {
     }
 
     def deactivateReport(reportId: String) = {
-        sql"update ${ReportConfig.table} set updated_on =${new Date()}, status='INACTIVE',status_msg = 'REPORT DEACTIVATED' where report_id=$reportId".update().apply()
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = ReportConfig.tableName
+        val query = s"update $table set updated_on = ?, status='INACTIVE',status_msg = 'REPORT DEACTIVATED' where report_id=?";
+        val pstmt: PreparedStatement = dbc.prepareStatement(query);
+        pstmt.setTimestamp(1, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(2, reportId);
+        pstmt.execute()
+
+        dbc.close()
     }
 
 
@@ -92,42 +124,88 @@ class PostgresDBUtil {
     def saveJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
-        val query = sql"""insert into ${JobRequest.table} ("tag", "request_id", "job_id", "status", "request_data", "requested_by", "requested_channel", "dt_job_submitted", "encryption_key", "iteration") values
-              (${jobRequest.tag}, ${jobRequest.request_id}, ${jobRequest.dataset}, ${jobRequest.status},
-              CAST($requestData AS JSON), ${jobRequest.requested_by}, ${jobRequest.requested_channel},
-              ${new Date()}, ${encryptionKey}, ${jobRequest.iteration.getOrElse(0)})"""
-        query.update().apply().toString
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = JobRequest.tableName
+        val insertQry = s"INSERT INTO $table (tag, request_id, job_id, status, request_data, requested_by, requested_channel, dt_job_submitted, encryption_key, iteration) values (?, ?, ?, ?, ?::json, ?, ?, ?, ?, ?)";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setString(1, jobRequest.tag);
+        pstmt.setString(2, jobRequest.request_id);
+        pstmt.setString(3, jobRequest.dataset);
+        pstmt.setString(4, jobRequest.status);
+        pstmt.setString(5, requestData);
+        pstmt.setString(6, jobRequest.requested_by);
+        pstmt.setString(7, jobRequest.requested_channel);
+        pstmt.setTimestamp(8, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(9, encryptionKey);
+        pstmt.setInt(10, jobRequest.iteration.getOrElse(0));
+        pstmt.execute()
+
+        dbc.close()
     }
 
     def updateJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
-        val query = sql"""update ${JobRequest.table} set dt_job_submitted =${new Date()} ,
-              job_id =${jobRequest.dataset}, status =${jobRequest.status}, request_data =CAST($requestData AS JSON),
-              requested_by =${jobRequest.requested_by}, requested_channel =${jobRequest.requested_channel},
-              encryption_key =${encryptionKey}, iteration =${jobRequest.iteration.getOrElse(0)}
-              where tag =${jobRequest.tag} and request_id =${jobRequest.request_id}"""
-        query.update().apply().toString
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = JobRequest.tableName
+        val insertQry = s"UPDATE $table set dt_job_submitted =? , job_id =?, status =?, request_data =?::json, requested_by =?, requested_channel =?, encryption_key =?, iteration =? where tag =? and request_id =?"
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setTimestamp(1, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(2, jobRequest.dataset);
+        pstmt.setString(3, jobRequest.status);
+        pstmt.setString(4, requestData);
+        pstmt.setString(5, jobRequest.requested_by);
+        pstmt.setString(6, jobRequest.requested_channel);
+        pstmt.setString(7, encryptionKey);
+        pstmt.setInt(8, jobRequest.iteration.getOrElse(0));
+        pstmt.setString(9, jobRequest.tag);
+        pstmt.setString(10, jobRequest.request_id);
+        pstmt.execute()
+
+        dbc.close()
     }
 
     def saveDatasetRequest(datasetRequest: DatasetConfig) = {
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
-        val query = sql"""insert into ${DatasetRequest.table} ("dataset_id", "dataset_config", "visibility", "dataset_type", "version", "authorized_roles", "available_from", "sample_request", "sample_response") values
-              (${datasetRequest.dataset_id}, CAST($datasetConfig AS JSON), ${datasetRequest.visibility}, ${datasetRequest.dataset_type},
-              ${datasetRequest.version}, concat('{',${datasetRequest.authorized_roles},'}')::text[],
-              ${datasetRequest.available_from}, ${datasetRequest.sample_request.getOrElse("")}, ${datasetRequest.sample_response.getOrElse("")})"""
-        query.update().apply().toString
+        val table = DatasetRequest.tableName
+        val insertQry = s"INSERT INTO $table (dataset_id, dataset_config, visibility, dataset_type, version, authorized_roles, available_from, sample_request, sample_response) values (?, ?::json, ?, ?, ?, ?, ?, ?, ?)";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setString(1, datasetRequest.dataset_id);
+        pstmt.setString(2, datasetConfig);
+        pstmt.setString(3, datasetRequest.visibility);
+        pstmt.setString(4, datasetRequest.dataset_type);
+        pstmt.setString(5, datasetRequest.version);
+        val authorizedRoles = datasetRequest.authorized_roles.toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(6, dbc.createArrayOf("text", authorizedRoles));
+        pstmt.setTimestamp(7, new Timestamp(datasetRequest.available_from.getMillis));
+        pstmt.setString(8, datasetRequest.sample_request.getOrElse(""));
+        pstmt.setString(9, datasetRequest.sample_response.getOrElse(""));
+        pstmt.execute()
+
+        dbc.close()
     }
 
     def updateDatasetRequest(datasetRequest: DatasetConfig) = {
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = DatasetRequest.tableName
+        val updateQry = s"UPDATE $table SET available_from = ?, dataset_type=?, dataset_config=?::json, visibility=?, version=?, authorized_roles=?, sample_request=?, sample_response=? WHERE dataset_id=?";
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
-        val query = sql"""update ${DatasetRequest.table} set available_from =${datasetRequest.available_from} ,
-              dataset_type =${datasetRequest.dataset_type}, dataset_config =CAST($datasetConfig AS JSON),
-              visibility =${datasetRequest.visibility}, version =${datasetRequest.version},
-              authorized_roles =concat('{',${datasetRequest.authorized_roles},'}')::text[], sample_request=${datasetRequest.sample_request.getOrElse("")},
-              sample_response=${datasetRequest.sample_response.getOrElse("")}
-              where dataset_id =${datasetRequest.dataset_id}"""
-        query.update().apply().toString
+        val pstmt: PreparedStatement = dbc.prepareStatement(updateQry);
+        pstmt.setTimestamp(1, new Timestamp(datasetRequest.available_from.getMillis));
+        pstmt.setString(2, datasetRequest.dataset_type);
+        pstmt.setString(3, datasetConfig);
+        pstmt.setString(4, datasetRequest.visibility);
+        pstmt.setString(5, datasetRequest.version);
+        val authorizedRoles = datasetRequest.authorized_roles.toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(6, dbc.createArrayOf("text", authorizedRoles));
+        dbc.createArrayOf("text", authorizedRoles)
+        pstmt.setString(7, datasetRequest.sample_request.getOrElse(""));
+        pstmt.setString(8, datasetRequest.sample_response.getOrElse(""));
+        pstmt.setString(9, datasetRequest.dataset_id);
+        pstmt.execute()
+
+        dbc.close()
     }
 
     //Experiment
@@ -137,27 +215,55 @@ class PostgresDBUtil {
 
     def saveExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
 
+
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = ExperimentDefinition.tableName
+
         expRequests.map { expRequest =>
-            val query = sql"""insert into ${ExperimentDefinition.table} ("exp_id", "exp_name", "status", "exp_description", "exp_data",
-                  "updated_on", "created_by", "updated_by", "created_on", "status_message", "criteria", "stats") values
-              (${expRequest.exp_id}, ${expRequest.exp_name}, ${expRequest.status.get}, ${expRequest.exp_description},
-              ${expRequest.exp_data}, ${expRequest.updated_on.get}, ${expRequest.created_by}, ${expRequest.updated_by},
-              ${expRequest.created_on.get}, ${expRequest.status_message.get}, ${expRequest.criteria}, ${expRequest.stats.getOrElse("")})"""
-            query.update().apply().toString
+            val query = s"INSERT INTO $table (exp_id, exp_name, status, exp_description, exp_data, updated_on, created_by, updated_by, created_on, status_message, criteria, stats) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            val pstmt: PreparedStatement = dbc.prepareStatement(query);
+            pstmt.setString(1, expRequest.exp_id);
+            pstmt.setString(2, expRequest.exp_name);
+            pstmt.setString(3, expRequest.status.get);
+            pstmt.setString(4, expRequest.exp_description);
+            pstmt.setString(5, expRequest.exp_data);
+            pstmt.setTimestamp(6, new Timestamp(expRequest.updated_on.get.getMillis));
+            pstmt.setString(7, expRequest.created_by);
+            pstmt.setString(8, expRequest.updated_by);
+            pstmt.setTimestamp(9, new Timestamp(expRequest.created_on.get.getMillis));
+            pstmt.setString(10, expRequest.status_message.get);
+            pstmt.setString(11, expRequest.criteria);
+            pstmt.setString(12, expRequest.stats.getOrElse(""));
+            pstmt.execute()
         }
+
+        dbc.close()
     }
 
     def updateExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
 
+        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val table = ExperimentDefinition.tableName
+
         expRequests.map { expRequest =>
-            val query = sql"""update ${ExperimentDefinition.table} set
-              exp_name =${expRequest.exp_name}, status =${expRequest.status.get}, exp_description =${expRequest.exp_description},
-              exp_data =${expRequest.exp_data}, updated_on =${expRequest.updated_on.get}, created_by =${expRequest.created_by},
-              updated_by =${expRequest.updated_by}, created_on =${expRequest.created_on.get}, status_message =${expRequest.status_message.get},
-              criteria =${expRequest.criteria}, stats =${expRequest.stats.getOrElse("")}
-              where exp_id =${expRequest.exp_id}"""
-            query.update().apply().toString
+            val query = s"UPDATE $table set exp_name =?, status =?, exp_description =?, exp_data =?, updated_on =?, created_by =?, updated_by =?, created_on =?, status_message =?, criteria =?, stats =? where exp_id =?";
+            val pstmt: PreparedStatement = dbc.prepareStatement(query);
+            pstmt.setString(1, expRequest.exp_name);
+            pstmt.setString(2, expRequest.status.get);
+            pstmt.setString(3, expRequest.exp_description);
+            pstmt.setString(4, expRequest.exp_data);
+            pstmt.setTimestamp(5, new Timestamp(expRequest.updated_on.get.getMillis));
+            pstmt.setString(6, expRequest.created_by);
+            pstmt.setString(7, expRequest.updated_by);
+            pstmt.setTimestamp(8, new Timestamp(expRequest.created_on.get.getMillis));
+            pstmt.setString(9, expRequest.status_message.get);
+            pstmt.setString(10, expRequest.criteria);
+            pstmt.setString(11, expRequest.stats.getOrElse(""));
+            pstmt.setString(12, expRequest.exp_id);
+            pstmt.execute()
         }
+
+        dbc.close()
     }
 
     def checkConnection = {

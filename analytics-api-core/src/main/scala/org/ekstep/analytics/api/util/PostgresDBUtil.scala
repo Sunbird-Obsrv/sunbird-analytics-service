@@ -21,12 +21,10 @@ class PostgresDBUtil {
 
     Class.forName("org.postgresql.Driver")
     ConnectionPool.singleton(s"$url$db", user, pass)
-
     implicit val session: AutoSession = AutoSession
 
-    val db1 = AppConfig.getString("postgres.db")
-    val url1 = AppConfig.getString("postgres.url")
-//    val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+//    val sql_connection: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
+//    val statement = sql_connection.createStatement()
 
     def read(sqlString: String): List[ConsumerChannel] = {
         SQL(sqlString).map(rs => ConsumerChannel(rs)).list().apply()
@@ -47,7 +45,7 @@ class PostgresDBUtil {
 
     def saveReportConfig(reportRequest: ReportRequest) = {
         val config = JSONUtils.serialize(reportRequest.config)
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = ReportConfig.tableName
         val insertQry = s"INSERT INTO $table (report_id, updated_on, report_description, requested_by, report_schedule, config, created_on, submitted_on, status, status_msg) values (?, ?, ?, ?, ?, ?::json, ?, ?, ?, ?)";
         val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
@@ -69,7 +67,7 @@ class PostgresDBUtil {
 
     def updateReportConfig(reportId: String, reportRequest: ReportRequest) = {
         val config = JSONUtils.serialize(reportRequest.config)
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = ReportConfig.tableName
         val insertQry = s"update $table set updated_on = ?, report_description = ?, requested_by = ?, report_schedule = ?, config = ?::JSON , status = 'ACTIVE' , status_msg = 'REPORT SUCCESSFULLY ACTIVATED'  where report_id = ?";
         val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
@@ -89,7 +87,7 @@ class PostgresDBUtil {
     }
 
     def deactivateReport(reportId: String) = {
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = ReportConfig.tableName
         val query = s"update $table set updated_on = ?, status='INACTIVE',status_msg = 'REPORT DEACTIVATED' where report_id=?";
         val pstmt: PreparedStatement = dbc.prepareStatement(query);
@@ -124,7 +122,7 @@ class PostgresDBUtil {
     def saveJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = JobRequest.tableName
         val insertQry = s"INSERT INTO $table (tag, request_id, job_id, status, request_data, requested_by, requested_channel, dt_job_submitted, encryption_key, iteration) values (?, ?, ?, ?, ?::json, ?, ?, ?, ?, ?)";
         val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
@@ -146,7 +144,7 @@ class PostgresDBUtil {
     def updateJobRequest(jobRequest: JobConfig) = {
         val requestData = JSONUtils.serialize(jobRequest.dataset_config)
         val encryptionKey = jobRequest.encryption_key.getOrElse(null)
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = JobRequest.tableName
         val insertQry = s"UPDATE $table set dt_job_submitted =? , job_id =?, status =?, request_data =?::json, requested_by =?, requested_channel =?, encryption_key =?, iteration =? where tag =? and request_id =?"
         val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
@@ -166,7 +164,7 @@ class PostgresDBUtil {
     }
 
     def saveDatasetRequest(datasetRequest: DatasetConfig) = {
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
         val table = DatasetRequest.tableName
         val insertQry = s"INSERT INTO $table (dataset_id, dataset_config, visibility, dataset_type, version, authorized_roles, available_from, sample_request, sample_response) values (?, ?::json, ?, ?, ?, ?, ?, ?, ?)";
@@ -187,7 +185,7 @@ class PostgresDBUtil {
     }
 
     def updateDatasetRequest(datasetRequest: DatasetConfig) = {
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = DatasetRequest.tableName
         val updateQry = s"UPDATE $table SET available_from = ?, dataset_type=?, dataset_config=?::json, visibility=?, version=?, authorized_roles=?, sample_request=?, sample_response=? WHERE dataset_id=?";
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
@@ -216,7 +214,7 @@ class PostgresDBUtil {
     def saveExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
 
 
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = ExperimentDefinition.tableName
 
         expRequests.map { expRequest =>
@@ -242,7 +240,7 @@ class PostgresDBUtil {
 
     def updateExperimentDefinition(expRequests: Array[ExperimentDefinition]) = {
 
-        val dbc: Connection = DriverManager.getConnection(s"$url1$db1?stringtype=unspecified", AppConfig.getString("postgres.user"), AppConfig.getString("postgres.pass"));
+        val dbc: Connection = DriverManager.getConnection(s"$url$db?stringtype=unspecified", user, pass);
         val table = ExperimentDefinition.tableName
 
         expRequests.map { expRequest =>

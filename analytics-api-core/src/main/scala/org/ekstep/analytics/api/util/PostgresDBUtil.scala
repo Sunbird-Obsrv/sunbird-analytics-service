@@ -24,7 +24,7 @@ class PostgresDBUtil {
 
     implicit val session: AutoSession = AutoSession
 
-    private lazy val dbc = ConnectionPool.borrow()
+    private lazy val dbc = DriverManager.getConnection(s"$url$db", user, pass);// ConnectionPool.borrow()
 
     def read(sqlString: String): List[ConsumerChannel] = {
         SQL(sqlString).map(rs => ConsumerChannel(rs)).list().apply()

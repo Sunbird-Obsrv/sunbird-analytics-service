@@ -54,6 +54,12 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => {
         sender() ! CommonUtil.OK(APIIds.PUBLIC_TELEMETRY_EXHAUST, Map())
       }
+      case AddDataSet(request: String, config: Config) => {
+        sender() ! CommonUtil.OK(APIIds.ADD_DATASET_REQUEST, Map())
+      }
+      case ListDataSet(config: Config) => {
+        sender() ! CommonUtil.OK(APIIds.LIST_DATASET, Map())
+      }
     }
   })
 
@@ -265,6 +271,20 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
     result = controller.refreshCache("DeviceLocation").apply(FakeRequest());
     Helpers.status(result) should be (Helpers.OK)
+  }
+
+  it should "test add dataset and list dataset API" in {
+
+    reset(cacheUtil);
+    reset(mockConfig);
+    reset(mockTable);
+
+    var result = controller.addDataset().apply(FakeRequest().withJsonBody(Json.parse("""{}""")));
+    Helpers.status(result) should be (Helpers.OK)
+
+    result = controller.listDataset().apply(FakeRequest());
+    Helpers.status(result) should be (Helpers.OK)
+
   }
 
 }

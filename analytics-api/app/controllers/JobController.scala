@@ -119,6 +119,21 @@ class JobController @Inject() (
       }
   }
 
+  def addDataset() = Action.async { request: Request[AnyContent] =>
+    val body: String = Json.stringify(request.body.asJson.get)
+    val res = ask(jobAPIActor, AddDataSet(body, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }
+  }
+
+  def listDataset() = Action.async { request: Request[AnyContent] =>
+    val res = ask(jobAPIActor, ListDataSet(config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }
+  }
+
   private def errResponse(msg: String, apiId: String, responseCode: String): Future[Result] = {
      val res = CommonUtil.errorResponse(apiId, msg, responseCode)
      Future {

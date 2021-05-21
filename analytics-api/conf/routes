@@ -29,6 +29,8 @@ GET /experiment/get/:experimentId controllers.ExperimentController.getExperiment
 POST /request/submit controllers.JobController.dataRequest
 GET /request/read/:tag controllers.JobController.getJob(tag: String)
 GET /request/list/:tag controllers.JobController.getJobList(tag: String)
+# Exhaust Internal API
+POST /request/search controllers.JobController.searchRequest
 
 GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
 GET /public/dataset/get/:datasetId controllers.JobController.getPublicExhaust(datasetId: String)

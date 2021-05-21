@@ -46,6 +46,15 @@ class JobController @Inject() (
     }
   }
 
+  def searchRequest(): Action[AnyContent] = Action.async { request: Request[AnyContent] =>
+    val body: String = Json.stringify(request.body.asJson.get)
+    val res = ask(jobAPIActor, SearchRequest(body, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }
+  }
+
+
   def getJob(tag: String) = Action.async { request: Request[AnyContent] =>
 
     val requestId = request.getQueryString("requestId").getOrElse("")

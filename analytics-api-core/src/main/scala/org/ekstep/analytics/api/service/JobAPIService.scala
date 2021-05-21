@@ -26,6 +26,8 @@ import scala.util.Sorting
 
 case class DataRequest(request: String, channel: String, config: Config)
 
+case class SearchRequest(request: String, config: Config)
+
 case class GetDataRequest(tag: String, requestId: String, config: Config)
 
 case class DataRequestList(tag: String, limit: Int, config: Config)
@@ -50,6 +52,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
     case AddDataSet(request: String, config: Config) => sender() ! addDataSet(request)(config, fc)
     case ListDataSet(config: Config) => sender() ! listDataSet()(config, fc)
+    case SearchRequest(request: String, config: Config) => sender() ! searchRequest(request)(config, fc)
   }
 
   implicit val className = "org.ekstep.analytics.api.service.JobAPIService"
@@ -67,6 +70,18 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else {
       CommonUtil.errorResponse(APIIds.DATA_REQUEST, isValid.get("message").get, ResponseCode.CLIENT_ERROR.toString)
     }
+  }
+
+  def searchRequest(request: String)(implicit config: Config, fc: FrameworkContext): Response = {
+    val body = JSONUtils.deserialize[RequestBody](request)
+    val isValid = _validateSearchReq(body)
+    if ("true".equals(isValid("status"))) {
+      val limit = body.request.limit.getOrElse(config.getInt("dataset.request.search.limit"))
+      val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()))
+      val result = jobRequests.take(limit).map { x => _createJobResponse(x) }
+      CommonUtil.OK(APIIds.DATA_REQUEST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+    } else
+      CommonUtil.errorResponse(APIIds.DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
   }
 
   def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
@@ -282,6 +297,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else {
       Map("status" -> "true")
     }
+  }
+
+  private def _validateSearchReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
+    if(body.request.filters.isEmpty) Map("status" -> "false", "message" -> "Filters are empty") else Map("status" -> "true")
   }
 
   private def _createJobResponse(job: JobRequest)(implicit config: Config, fc: FrameworkContext): JobResponse = {

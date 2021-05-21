@@ -18,7 +18,6 @@ class PostgresDBUtil {
     private lazy val url = AppConfig.getString("postgres.url")
     private lazy val user = AppConfig.getString("postgres.user")
     private lazy val pass = AppConfig.getString("postgres.pass")
-
     Class.forName("org.postgresql.Driver")
     ConnectionPool.singleton(s"$url$db", user, pass)
 
@@ -100,6 +99,14 @@ class PostgresDBUtil {
 
     def getJobRequestList(tag: String, limit: Int): List[JobRequest] = {
         sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
+    }
+
+    def searchJobRequest(filters: Map[String, AnyRef]): List[JobRequest] = {
+        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull, "channel" -> filters.get("channel").orNull)
+        val whereQuery = fieldsMap
+          .filter(_._2 != null) // Removing the null values
+          .map { case (key, value) => key + "=" + value }.mkString(" ") // Convert the map to string format ("status="submitted" job_id="progress-exhaust"")
+        sql"""select * from ${JobRequest.table} where $whereQuery ORDER BY dt_job_submitted DESC LIMIT """.map(rs => JobRequest(rs)).list().apply()
     }
 
     def getDataset(datasetId: String): Option[DatasetRequest] = {

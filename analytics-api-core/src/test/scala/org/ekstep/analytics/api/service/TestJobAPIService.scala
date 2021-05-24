@@ -59,6 +59,22 @@ class TestJobAPIService extends BaseSpec  {
       response1.responseCode should be("OK")
   }
 
+  "JobAPIService" should "return response for search  api" in {
+    val request = """{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dataset":"progress-exhaust","channel":"in.ekstep","status":"SUBMITTED"},"limit":10}}"""
+    val response = jobApiServiceActorRef.underlyingActor.searchRequest(request)
+    response.responseCode should be("OK")
+    response.result.isEmpty should be(false)
+    response.result.getOrElse(Map())("count") should be(1)
+    response.result.getOrElse(Map())("jobs").asInstanceOf[List[Map[String, AnyRef]]].size should be(1)
+  }
+
+  "JobAPIService" should "return error response when filters are not available in the request" in {
+    val request = """{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"limit":10}}"""
+    val response = jobApiServiceActorRef.underlyingActor.searchRequest(request)
+    response.params.status should be("failed")
+    response.params.errmsg should be ("Filters are empty")
+  }
+
   "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {
 
       val submissionDate = DateTime.now().toString("yyyy-MM-dd")

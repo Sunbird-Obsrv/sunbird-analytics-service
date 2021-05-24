@@ -154,6 +154,14 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     Helpers.status(result) should be (Helpers.OK)
   }
 
+  it should "Test the search controller request" in {
+    reset(cacheUtil);
+    reset(mockConfig);
+    reset(mockTable);
+    val result = controller.searchRequest().apply(FakeRequest().withJsonBody(Json.parse("""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dataset":"progress-exhaust","channel":"in.ekstep","status":"SUBMITTED"},"limit":10}}""")))
+    Helpers.status(result) should be (Helpers.OK)
+  }
+
   it should "test get job list API" in {
 
     reset(cacheUtil);

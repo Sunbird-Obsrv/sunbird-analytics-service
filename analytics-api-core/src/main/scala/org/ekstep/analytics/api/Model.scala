@@ -100,6 +100,7 @@ object APIIds {
 	val RECOMMENDATIONS = "ekstep.analytics.recommendations"
 	val DATA_REQUEST = "ekstep.analytics.dataset.request.submit";
 	val GET_DATA_REQUEST = "ekstep.analytics.dataset.request.info";
+	val SEARCH_DATA_REQUEST = "ekstep.analytics.dataset.request.search"
 	val GET_DATA_REQUEST_LIST = "ekstep.analytics.dataset.request.list";
 	val CONTENT_USAGE = "ekstep.analytics.metrics.content-usage"
 	val DEVICE_SUMMARY = "ekstep.analytics.metrics.device-summary"

@@ -60,6 +60,9 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case ListDataSet(config: Config) => {
         sender() ! CommonUtil.OK(APIIds.LIST_DATASET, Map())
       }
+      case SearchRequest(request: String, config: Config) => {
+        sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
+      }
     }
   })
 

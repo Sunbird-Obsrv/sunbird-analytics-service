@@ -79,9 +79,9 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       val limit = body.request.limit.getOrElse(config.getInt("dataset.request.search.limit"))
       val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()))
       val result = jobRequests.take(limit).map { x => _createJobResponse(x) }
-      CommonUtil.OK(APIIds.DATA_REQUEST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+      CommonUtil.OK(APIIds.SEARCH_DATA_REQUEST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
     } else
-      CommonUtil.errorResponse(APIIds.DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
+      CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
   }
 
   def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {

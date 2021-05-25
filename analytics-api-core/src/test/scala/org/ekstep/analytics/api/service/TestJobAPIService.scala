@@ -75,6 +75,16 @@ class TestJobAPIService extends BaseSpec  {
     response.params.errmsg should be ("Filters are empty")
   }
 
+  "JobAPIService" should "return response for search api job submitted date filter " in {
+    val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+    val request = s"""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dtJobSubmitted": "$submissionDate"},"limit":1}}"""
+    val response = jobApiServiceActorRef.underlyingActor.searchRequest(request)
+    response.responseCode should be("OK")
+    response.result.isEmpty should be(false)
+    response.result.getOrElse(Map())("count") should be(2) // Total available requests in the DB
+    response.result.getOrElse(Map())("jobs").asInstanceOf[List[Map[String, AnyRef]]].size should be(1) // Requests in the response is equal to limit
+  }
+
   "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {
 
       val submissionDate = DateTime.now().toString("yyyy-MM-dd")

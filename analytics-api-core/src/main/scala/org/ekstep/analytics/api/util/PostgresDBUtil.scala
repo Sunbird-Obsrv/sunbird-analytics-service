@@ -102,11 +102,13 @@ class PostgresDBUtil {
     }
 
     def searchJobRequest(filters: Map[String, AnyRef]): List[JobRequest] = {
-        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull, "requested_channel" -> filters.get("channel").orNull)
+        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull,
+            "requested_channel" -> filters.get("channel").orNull, "date(dt_job_submitted)" -> filters.get("dtJobSubmitted").orNull // YYYY-MM-DD
+        )
         val whereQuery: String = fieldsMap
           .filter(_._2 != null) // Removing the null values
           .map { case (key, value) => key + "=" + s"'$value'" }.mkString(""" and """) // Convert the map to string format ("status="submitted" job_id="progress-exhaust"")
-        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select * from job_request where $whereQuery order by dt_job_submitted DESC")
+        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select * from ${JobRequest.tableName} where $whereQuery order by dt_job_submitted DESC")
         sql"$query".map(rs => JobRequest(rs)).list().apply()
     }
 

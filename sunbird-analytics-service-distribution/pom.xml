@@ -45,8 +45,8 @@
                             </execution>
                         </executions>
                         <configuration>
-                            <repository>sunbird-analytics-service</repository>
-                            <tag>${release-version}</tag>
+                            <repository>manjudr/sunbird-analytics-service</repository>
+                            <tag>test</tag>
                         </configuration>
                     </plugin>
                 </plugins>

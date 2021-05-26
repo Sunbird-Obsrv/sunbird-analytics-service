@@ -101,15 +101,25 @@ class PostgresDBUtil {
         sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
     }
 
-    def searchJobRequest(filters: Map[String, AnyRef]): List[JobRequest] = {
+    def searchJobRequest(filters: Map[String, AnyRef], limit: Int): List[JobRequest] = {
         val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull,
             "requested_channel" -> filters.get("channel").orNull, "date(dt_job_submitted)" -> filters.get("dtJobSubmitted").orNull // YYYY-MM-DD
         )
-        val whereQuery: String = fieldsMap
-          .filter(_._2 != null) // Removing the null values
-          .map { case (key, value) => key + "=" + s"'$value'" }.mkString(""" and """) // Convert the map to string format ("status="submitted" job_id="progress-exhaust"")
-        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select * from ${JobRequest.tableName} where $whereQuery order by dt_job_submitted DESC")
+        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select * from ${JobRequest.tableName} where ${createWhereQuery(fieldsMap)} order by dt_job_submitted DESC LIMIT $limit")
         sql"$query".map(rs => JobRequest(rs)).list().apply()
+    }
+
+    def getJobRequestsCount(filters: Map[String, AnyRef]): Option[Int] = {
+        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull,
+            "requested_channel" -> filters.get("channel").orNull, "date(dt_job_submitted)" -> filters.get("dtJobSubmitted").orNull // YYYY-MM-DD
+        )
+        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select count(*) from ${JobRequest.tableName} where ${createWhereQuery(fieldsMap)}")
+        sql"$query".map(rs => rs.int("count")).single().apply()
+    }
+
+    private def createWhereQuery(columns: Map[String, AnyRef]): String = {
+        columns.filter(_._2 != null) // Removing the null values
+          .map { case (key, value) => key + "=" + s"'$value'" }.mkString(""" and """) // Convert the map to string format ("status="submitted" job_id="progress-exhaust"")
     }
 
     def getDataset(datasetId: String): Option[DatasetRequest] = {

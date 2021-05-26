@@ -77,9 +77,10 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val isValid = _validateSearchReq(body)
     if ("true".equals(isValid("status"))) {
       val limit = body.request.limit.getOrElse(config.getInt("dataset.request.search.limit"))
-      val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()))
-      val result = jobRequests.take(limit).map { x => _createJobResponse(x) }
-      CommonUtil.OK(APIIds.SEARCH_DATA_REQUEST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+      val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()), limit)
+      val totalCount = postgresDBUtil.getJobRequestsCount(body.request.filters.getOrElse(Map()))
+      val result = jobRequests.map { x => _createJobResponse(x) }
+      CommonUtil.OK(APIIds.SEARCH_DATA_REQUEST, Map("count" -> Int.box(totalCount.getOrElse(0)), "jobs" -> result))
     } else
       CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
   }

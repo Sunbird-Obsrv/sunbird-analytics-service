@@ -77,7 +77,7 @@ class TestJobAPIService extends BaseSpec  {
 
   "JobAPIService" should "return response for search api job submitted date filter " in {
     val submissionDate = DateTime.now().toString("yyyy-MM-dd")
-    val request = s"""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dtJobSubmitted": "$submissionDate"},"limit":1}}"""
+    val request = s"""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"requestedDate": "$submissionDate"},"limit":1}}"""
     val response = jobApiServiceActorRef.underlyingActor.searchRequest(request)
     response.responseCode should be("OK")
     response.result.isEmpty should be(false)

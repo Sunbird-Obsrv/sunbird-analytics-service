@@ -1,12 +1,13 @@
 package org.ekstep.analytics.api.util
 
-import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Timestamp}
-import java.util.Date
-import javax.inject._
-import org.apache.spark.sql.catalyst.util.StringUtils
 import org.ekstep.analytics.api.{DatasetConfig, JobConfig, ReportRequest}
 import org.joda.time.DateTime
 import scalikejdbc._
+
+import java.sql.{DriverManager, PreparedStatement, ResultSet, Timestamp}
+import java.util.Date
+import javax.inject._
+import scala.collection.mutable.ListBuffer
 
 @Singleton
 class PostgresDBUtil {
@@ -111,7 +112,6 @@ class PostgresDBUtil {
     }
 
     def searchJobRequest(filters: Map[String, AnyRef], limit: Int): List[JobRequest] = {
-        import scala.collection.mutable.ListBuffer
         val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createWhereClause(getSearchQueryColumns(filters))
         val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT * FROM job_request where ${whereClause.mkString(""" and """)} order by dt_job_submitted DESC LIMIT $limit ")
         val prepareStatement = updateStatement(prepareStatements, whereClauseValues)

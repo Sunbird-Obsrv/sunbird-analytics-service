@@ -1,15 +1,12 @@
 package org.ekstep.analytics.api.util
 
-import java.sql.{Connection, DriverManager, PreparedStatement, SQLType, Timestamp}
+import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Timestamp}
 import java.util.Date
-
 import javax.inject._
 import org.apache.spark.sql.catalyst.util.StringUtils
 import org.ekstep.analytics.api.{DatasetConfig, JobConfig, ReportRequest}
 import org.joda.time.DateTime
 import scalikejdbc._
-
-import collection.JavaConverters._
 
 @Singleton
 class PostgresDBUtil {
@@ -101,25 +98,67 @@ class PostgresDBUtil {
         sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
     }
 
+    def getJobRequestsCount(filters: Map[String, AnyRef]): Int = {
+        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createWhereClause(getSearchQueryColumns(filters))
+        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT count(*) FROM job_request where ${whereClause.mkString(""" and """)}")
+        val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
+        val rs = prepareStatement.executeQuery()
+        var count: Int = 0
+        while (rs.next()) {
+            count = rs.getInt("count")
+        }
+        count
+    }
+
     def searchJobRequest(filters: Map[String, AnyRef], limit: Int): List[JobRequest] = {
-        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull,
-            "requested_channel" -> filters.get("channel").orNull, "date(dt_job_submitted)" -> filters.get("requestedDate").orNull // YYYY-MM-DD
-        )
-        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select * from ${JobRequest.tableName} where ${createWhereQuery(fieldsMap)} order by dt_job_submitted DESC LIMIT $limit")
-        sql"$query".map(rs => JobRequest(rs)).list().apply()
+        import scala.collection.mutable.ListBuffer
+        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createWhereClause(getSearchQueryColumns(filters))
+        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT * FROM job_request where ${whereClause.mkString(""" and """)} order by dt_job_submitted DESC LIMIT $limit ")
+        val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
+        val rs = prepareStatement.executeQuery()
+        val result = new ListBuffer[JobRequest]()
+        while (rs.next()) {
+            result += JobRequest(rs = rs)
+        }
+        result.toList
     }
 
-    def getJobRequestsCount(filters: Map[String, AnyRef]): Option[Int] = {
-        val fieldsMap = Map("job_id" -> filters.get("dataset").orNull, "status" -> filters.get("status").orNull,
-            "requested_channel" -> filters.get("channel").orNull, "date(dt_job_submitted)" -> filters.get("requestedDate").orNull // YYYY-MM-DD
-        )
-        val query: SQLSyntax = SQLSyntax.createUnsafely(s"select count(*) from ${JobRequest.tableName} where ${createWhereQuery(fieldsMap)}")
-        sql"$query".map(rs => rs.int("count")).single().apply()
+    private def updateStatement(prepareStatement: PreparedStatement, whereClauseValues: List[AnyRef]): PreparedStatement = {
+        for ((value, ind) <- whereClauseValues.view.zip(Stream from 1)) {
+            value match {
+                case date: Date =>
+                    prepareStatement.setDate(ind, new java.sql.Date(date.getTime))
+                case _ =>
+                    prepareStatement.setString(ind, value.toString)
+            }
+        }
+        prepareStatement
     }
 
-    private def createWhereQuery(columns: Map[String, AnyRef]): String = {
-        columns.filter(_._2 != null) // Removing the null values
-          .map { case (key, value) => key + "=" + s"'$value'" }.mkString(""" and """) // Convert the map to string format ("status="submitted" job_id="progress-exhaust"")
+    private def createWhereClause(params: Map[String, AnyRef]): (List[String], List[AnyRef]) = {
+        import java.text.SimpleDateFormat
+        val df = new SimpleDateFormat("yyyy-MM-dd")
+        val whereClause = new ListBuffer[String]()
+        val whereClauseValues = new ListBuffer[AnyRef]()
+        params.map {
+            case (col, value) =>
+                if (col == "dt_job_submitted") {
+                    whereClause += "date(dt_job_submitted) = ?::DATE"
+                    whereClauseValues += df.parse(value.toString)
+                } else {
+                    whereClause += s"$col = ?"
+                    whereClauseValues += value
+                }
+        }
+        (whereClause.toList, whereClauseValues.toList)
+    }
+
+    private def getSearchQueryColumns(filters: Map[String, AnyRef]): Map[String, String] = {
+        val requestedDate: String = filters.getOrElse("requestedDate", null).asInstanceOf[String]
+        val dataset: String = filters.get("dataset").orNull.asInstanceOf[String]
+        val status: String = filters.get("status").orNull.asInstanceOf[String]
+        val requested_channel: String = filters.get("channel").orNull.asInstanceOf[String]
+        Map("job_id" -> dataset, "status" -> status, "requested_channel" -> requested_channel, "dt_job_submitted" -> requestedDate).filter(_._2 != null)
     }
 
     def getDataset(datasetId: String): Option[DatasetRequest] = {
@@ -366,6 +405,22 @@ object JobRequest extends SQLSyntaxSupport[JobRequest] {
         rs.longOpt("execution_time"),
         rs.stringOpt("err_message"),
         rs.intOpt("iteration")
+    )
+
+    def apply(rs: ResultSet) = new JobRequest(tag = rs.getString("tag"),
+        request_id = rs.getString("request_id"),
+        job_id = rs.getString("job_id"),
+        status = rs.getString("status"),
+        request_data = JSONUtils.deserialize[Map[String, Any]](rs.getString("request_data")),
+        requested_by = rs.getString("requested_by"),
+        requested_channel = rs.getString("requested_channel"),
+        dt_job_submitted = rs.getTimestamp("dt_job_submitted").getTime,
+        download_urls = if (rs.getArray("download_urls") != null) Some(rs.getArray("download_urls").getArray.asInstanceOf[Array[String]].toList) else None,
+        dt_file_created = if (rs.getTimestamp("dt_file_created") != null) Some(rs.getTimestamp("dt_file_created").getTime) else None,
+        dt_job_completed = if (rs.getTimestamp("dt_job_completed") != null) Some(rs.getTimestamp("dt_job_completed").getTime) else None,
+        execution_time = Some(rs.getLong("execution_time")),
+        err_message = Some(rs.getString("err_message")),
+        iteration = Some(rs.getInt("iteration"))
     )
 }
 

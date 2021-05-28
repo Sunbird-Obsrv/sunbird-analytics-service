@@ -76,13 +76,19 @@ class TestJobAPIService extends BaseSpec  {
   }
 
   "JobAPIService" should "return response for search api job submitted date filter " in {
+    EmbeddedPostgresql.execute(
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "encryption_key") values ('client-1:in.ekstep', 'test-score-report1-dd-mm', 'test-score-report1',
+        'SUBMITTED',  '{"batchFilter":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', 'xxxx-xxxx');""")
+
     val submissionDate = DateTime.now().toString("yyyy-MM-dd")
-    val request = s"""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"requestedDate": "$submissionDate"},"limit":1}}"""
+    val request = s"""{"id":"ekstep.analytics.job.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"requestedDate": "$submissionDate"},"limit":5}}"""
     val response = jobApiServiceActorRef.underlyingActor.searchRequest(request)
     response.responseCode should be("OK")
     response.result.isEmpty should be(false)
     response.result.getOrElse(Map())("count") should be(2) // Total available requests in the DB
-    response.result.getOrElse(Map())("jobs").asInstanceOf[List[Map[String, AnyRef]]].size should be(1) // Requests in the response is equal to limit
+    response.result.getOrElse(Map())("jobs").asInstanceOf[List[Map[String, AnyRef]]].size should be(2) // Requests in the response is equal to limit
   }
 
   "JobAPIService" should "return response for data request when re-submitted request for already submitted job" in {

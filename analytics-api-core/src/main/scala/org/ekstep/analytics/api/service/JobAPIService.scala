@@ -301,7 +301,14 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _validateSearchReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    if(body.request.filters.isEmpty) Map("status" -> "false", "message" -> "Filters are empty") else Map("status" -> "true")
+    import scala.collection.JavaConverters._
+    val filters: List[String] = Option(config.getStringList("dataset.request.search.filters").asScala.toList).getOrElse(List("dataset", "requestedDate", "status", "channel"))
+    if (body.request.filters.nonEmpty) {
+      val isPresets: List[Boolean] = filters.map(param => body.request.filters.getOrElse(Map()).contains(param))
+      if (isPresets.contains(true)) Map("status" -> "true") else Map("status" -> "false", "message" -> "Unsupported filters")
+    } else {
+      Map("status" -> "false", "message" -> "Filters are empty")
+    }
   }
 
   private def _createJobResponse(job: JobRequest)(implicit config: Config, fc: FrameworkContext): JobResponse = {

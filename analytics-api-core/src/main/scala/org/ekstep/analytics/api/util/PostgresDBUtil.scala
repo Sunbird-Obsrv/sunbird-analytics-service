@@ -100,7 +100,7 @@ class PostgresDBUtil {
     }
 
     def getJobRequestsCount(filters: Map[String, AnyRef]): Int = {
-        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createWhereClause(getSearchQueryColumns(filters))
+        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createSearchWhereClause(getSearchQueryColumns(filters))
         val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT count(*) FROM job_request where ${whereClause.mkString(""" and """)}")
         val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
         val rs = prepareStatement.executeQuery()
@@ -112,7 +112,7 @@ class PostgresDBUtil {
     }
 
     def searchJobRequest(filters: Map[String, AnyRef], limit: Int): List[JobRequest] = {
-        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createWhereClause(getSearchQueryColumns(filters))
+        val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createSearchWhereClause(getSearchQueryColumns(filters))
         val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT * FROM job_request where ${whereClause.mkString(""" and """)} order by dt_job_submitted DESC LIMIT $limit ")
         val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
         val rs = prepareStatement.executeQuery()
@@ -135,7 +135,7 @@ class PostgresDBUtil {
         prepareStatement
     }
 
-    private def createWhereClause(params: Map[String, AnyRef]): (List[String], List[AnyRef]) = {
+    private def createSearchWhereClause(params: Map[String, AnyRef]): (List[String], List[AnyRef]) = {
         import java.text.SimpleDateFormat
         val df = new SimpleDateFormat("yyyy-MM-dd")
         val whereClause = new ListBuffer[String]()

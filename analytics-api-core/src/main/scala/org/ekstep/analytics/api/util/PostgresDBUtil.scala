@@ -101,7 +101,7 @@ class PostgresDBUtil {
 
     def getJobRequestsCount(filters: Map[String, AnyRef]): Int = {
         val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createSearchWhereClause(getSearchQueryColumns(filters))
-        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT count(*) FROM job_request where ${whereClause.mkString(""" and """)}")
+        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT count(*) FROM ${JobRequest.tableName} where ${whereClause.mkString(""" and """)}")
         val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
         val rs = prepareStatement.executeQuery()
         var count: Int = 0
@@ -113,7 +113,7 @@ class PostgresDBUtil {
 
     def searchJobRequest(filters: Map[String, AnyRef], limit: Int): List[JobRequest] = {
         val (whereClause, whereClauseValues): (List[String], List[AnyRef]) = createSearchWhereClause(getSearchQueryColumns(filters))
-        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT * FROM job_request where ${whereClause.mkString(""" and """)} order by dt_job_submitted DESC LIMIT $limit ")
+        val prepareStatements: PreparedStatement = dbc.prepareStatement(s"SELECT * FROM ${JobRequest.tableName} where ${whereClause.mkString(""" and """)} order by dt_job_submitted DESC LIMIT $limit ")
         val prepareStatement = updateStatement(prepareStatements, whereClauseValues)
         val rs = prepareStatement.executeQuery()
         val result = new ListBuffer[JobRequest]()

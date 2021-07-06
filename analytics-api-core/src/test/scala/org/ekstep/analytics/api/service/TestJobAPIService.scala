@@ -594,4 +594,13 @@ class TestJobAPIService extends BaseSpec  {
     res10.responseCode should be("CLIENT_ERROR")
     res10.params.errmsg should be("authorizedRoles is empty")
   }
+
+  it should "check data request for druid datasets" in {
+    val request = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","tag":"test-tag","datasetConfig":{"type":"ml-task-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-1"}},"encryptionKey":"test@123"}}"""
+    val response = jobApiServiceActorRef.underlyingActor.dataRequest(request, "in.ekstep")
+    response.responseCode should be("OK")
+    val responseData = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(response.result.get))
+    responseData.status should be("SUBMITTED")
+
+  }
 }

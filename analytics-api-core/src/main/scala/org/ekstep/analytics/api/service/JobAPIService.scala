@@ -263,7 +263,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    val batchLimit = config.getInt("data_exhaust.batch.limit")
     if (body.request.tag.isEmpty) {
         Map("status" -> "false", "message" -> "tag is empty")
     } else if (body.request.dataset.isEmpty) {
@@ -271,16 +270,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     } else if (body.request.datasetConfig.isEmpty) {
       Map("status" -> "false", "message" -> "datasetConfig is empty")
     } else {
-      val batchId = body.request.datasetConfig.get.get("batchId")
-      val batches = if (batchId.nonEmpty) List(batchId.get.asInstanceOf[String]) else body.request.datasetConfig.get.getOrElse("batchFilter", List[String]()).asInstanceOf[List[String]]
-      val searchFilter = body.request.datasetConfig.get.get("searchFilter")
-      if(batches.isEmpty && searchFilter.isEmpty) {
-        Map("status" -> "false", "message" -> "Request should have either of batchId, batchFilter or searchFilter")
-      }
-      else if (batches.length > batchLimit)
-        Map("status" -> "false", "message" -> s"Number of batches in request exceeded. It should be within $batchLimit")
-      else
-        Map("status" -> "true")
+      Map("status" -> "true")
     }
   }
 

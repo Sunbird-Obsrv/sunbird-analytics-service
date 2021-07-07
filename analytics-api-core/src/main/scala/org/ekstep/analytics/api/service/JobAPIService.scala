@@ -263,7 +263,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    val batchLimit = config.getInt("data_exhaust.batch.limit")
     if (body.request.tag.isEmpty) {
         Map("status" -> "false", "message" -> "tag is empty")
     } else if (body.request.dataset.isEmpty) {

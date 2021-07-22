@@ -96,7 +96,7 @@ class PostgresDBUtil {
     }
 
     def getJobRequestList(tag: String, limit: Int): List[JobRequest] = {
-        sql"""select * from ${JobRequest.table} where tag = $tag limit $limit""".map(rs => JobRequest(rs)).list().apply()
+        sql"""select * from ${JobRequest.table} where tag = $tag order by dt_job_submitted DESC limit $limit""".map(rs => JobRequest(rs)).list().apply()
     }
 
     def getJobRequestsCount(filters: Map[String, AnyRef]): Int = {

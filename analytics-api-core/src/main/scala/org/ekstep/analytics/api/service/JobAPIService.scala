@@ -64,9 +64,19 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val body = JSONUtils.deserialize[RequestBody](request)
     val isValid = _validateReq(body)
     if ("true".equals(isValid.get("status").get)) {
-      val job = upsertRequest(body, channel)
-      val response = CommonUtil.caseClassToMap(_createJobResponse(job))
-      CommonUtil.OK(APIIds.DATA_REQUEST, response)
+      try {
+        val job = upsertRequest(body, channel)
+        val response = CommonUtil.caseClassToMap(_createJobResponse(job))
+        CommonUtil.OK(APIIds.DATA_REQUEST, response)
+      } catch {
+        case ex: Exception =>
+          ex.printStackTrace()
+          val errorMessage = s"SubmitRequestAPI failed due to ${ex.getMessage}"
+          APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
+            "rid" -> "submitRequest", "title" -> "submitRequest")), "data" -> errorMessage)), "submitRequest")
+          throw ex
+      }
+
     } else {
       CommonUtil.errorResponse(APIIds.DATA_REQUEST, isValid.get("message").get, ResponseCode.CLIENT_ERROR.toString)
     }
@@ -76,11 +86,20 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val body = JSONUtils.deserialize[RequestBody](request)
     val isValid = _validateSearchReq(body)
     if ("true".equals(isValid("status"))) {
-      val limit = body.request.limit.getOrElse(config.getInt("dataset.request.search.limit"))
-      val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()), limit)
-      val requestsCount = postgresDBUtil.getJobRequestsCount(body.request.filters.getOrElse(Map()))
-      val result = jobRequests.map { x => _createJobResponse(x) }
-      CommonUtil.OK(APIIds.SEARCH_DATA_REQUEST, Map("count" -> Int.box(requestsCount), "jobs" -> result))
+      try {
+        val limit = body.request.limit.getOrElse(config.getInt("dataset.request.search.limit"))
+        val jobRequests = postgresDBUtil.searchJobRequest(body.request.filters.getOrElse(Map()), limit)
+        val requestsCount = postgresDBUtil.getJobRequestsCount(body.request.filters.getOrElse(Map()))
+        val result = jobRequests.map { x => _createJobResponse(x) }
+        CommonUtil.OK(APIIds.SEARCH_DATA_REQUEST, Map("count" -> Int.box(requestsCount), "jobs" -> result))
+      } catch {
+        case ex: Exception =>
+          ex.printStackTrace()
+          val errorMessage = s"SearchRequestAPI failed due to ${ex.getMessage}"
+          APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
+            "rid" -> "searchRequest", "title" -> "searchRequest")), "data" -> errorMessage)), "searchRequest")
+          throw ex
+      }
     } else
       CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
   }
@@ -90,16 +109,34 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     if (job.isEmpty) {
       CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
     } else {
-      val jobStatusRes = _createJobResponse(job.get)
-      CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
+      try {
+        val jobStatusRes = _createJobResponse(job.get)
+        CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
+      } catch {
+        case ex: Exception =>
+          ex.printStackTrace()
+          val errorMessage = s"getRequestAPI failed due to ${ex.getMessage}"
+          APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
+            "rid" -> "getRequest", "title" -> "getRequest")), "data" -> errorMessage)), "getRequest")
+          throw ex
+      }
     }
   }
 
   def getDataRequestList(tag: String, limit: Int)(implicit config: Config, fc: FrameworkContext): Response = {
-    val currDate = DateTime.now()
-    val jobRequests = postgresDBUtil.getJobRequestList(tag, limit)
-    val result = jobRequests.map { x => _createJobResponse(x) }
-    CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+    try {
+      val currDate = DateTime.now()
+      val jobRequests = postgresDBUtil.getJobRequestList(tag, limit)
+      val result = jobRequests.map { x => _createJobResponse(x) }
+      CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+    } catch {
+      case ex: Exception =>
+        ex.printStackTrace()
+        val errorMessage = s"getRequestListAPI failed due to ${ex.getMessage}"
+        APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
+          "rid" -> "getRequestList", "title" -> "getRequestList")), "data" -> errorMessage)), "getRequestList")
+        throw ex
+    }
   }
 
   def getChannelData(channel: String, datasetId: String, from: Option[String], to: Option[String], since: Option[String] = None)(implicit config: Config, fc: FrameworkContext): Response = {

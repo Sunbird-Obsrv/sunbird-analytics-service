@@ -39,6 +39,11 @@ class JobController @Inject() (
        val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
        res.map { x =>
          result(x.responseCode, JSONUtils.serialize(x))
+       }.recover {
+         case ex: Exception =>
+           InternalServerError(
+             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.DATA_REQUEST, ex.getMessage, "ERROR"))
+           ).as("application/json")
        }
     } else {
        APILogger.log(checkFlag._2.get)
@@ -51,6 +56,11 @@ class JobController @Inject() (
     val res = ask(jobAPIActor, SearchRequest(body, config)).mapTo[Response]
     res.map { x =>
       result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
@@ -66,7 +76,12 @@ class JobController @Inject() (
        val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, config)).mapTo[Response]
        res.map { x =>
           result(x.responseCode, JSONUtils.serialize(x))
-        }
+        }.recover {
+         case ex: Exception =>
+           InternalServerError(
+             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, ex.getMessage, "ERROR"))
+           ).as("application/json")
+       }
     } else {
         APILogger.log(checkFlag._2.get)
         errResponse(checkFlag._2.get, APIIds.GET_DATA_REQUEST, ResponseCode.FORBIDDEN.toString)
@@ -84,6 +99,11 @@ class JobController @Inject() (
        val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, config)).mapTo[Response]
        res.map { x =>
           result(x.responseCode, JSONUtils.serialize(x))
+       }.recover {
+         case ex: Exception =>
+           InternalServerError(
+             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST_LIST, ex.getMessage, "ERROR"))
+           ).as("application/json")
        }
     }
     else {

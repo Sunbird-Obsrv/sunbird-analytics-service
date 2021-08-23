@@ -4,7 +4,7 @@ import akka.testkit.TestActorRef
 import akka.util.Timeout
 import com.typesafe.config.Config
 import controllers.JobController
-import org.ekstep.analytics.api.{APIIds, Response}
+import org.ekstep.analytics.api.{APIIds, Response, ResponseCode}
 import org.ekstep.analytics.api.service.{ChannelData, DataRequest, DataRequestList, GetDataRequest}
 import org.ekstep.analytics.api.service._
 import org.ekstep.analytics.api.util._
@@ -39,8 +39,12 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
   val jobAPIActor = TestActorRef(new JobAPIService(postgresUtilMock) {
     override def receive: Receive = {
-      case DataRequest(request: String, channelId: String, config: Config) => {
-        sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
+      case req:DataRequest => {
+        if (req.channel.equals("channelId")) {
+          sender() ! new Exception("Caused by: java.net.ConnectException: Connection refused (Connection refused)")
+        } else {
+          sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
+        }
       }
       case GetDataRequest(clientKey: String, requestId: String, config: Config) => {
         sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST, Map())
@@ -296,6 +300,19 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     result = controller.listDataset().apply(FakeRequest());
     Helpers.status(result) should be (Helpers.OK)
 
+  }
+
+  it should "test data request API for 500" in {
+
+    reset(cacheUtil);
+    reset(mockConfig);
+    reset(mockTable);
+    when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
+
+    val result = controller.dataRequest().apply(FakeRequest().withHeaders(("X-Channel-ID", "channelId")).withJsonBody(Json.parse("""{}""")))
+    Helpers.status(result) should be (500)
   }
 
 }

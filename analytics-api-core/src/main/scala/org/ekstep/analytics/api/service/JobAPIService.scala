@@ -105,21 +105,21 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   }
 
   def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
-    val job = postgresDBUtil.getJobRequest(requestId, tag)
-    if (job.isEmpty) {
-      CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
-    } else {
-      try {
+    try {
+      val job = postgresDBUtil.getJobRequest(requestId, tag)
+      if (job.isEmpty) {
+        CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
+      } else {
         val jobStatusRes = _createJobResponse(job.get)
         CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
-      } catch {
+      }
+    } catch {
         case ex: Exception =>
           ex.printStackTrace()
           val errorMessage = s"getRequestAPI failed due to ${ex.getMessage}"
           APILogger.log("", Option(Map("type" -> "api_access", "params" -> List(Map("status" -> 500, "method" -> "POST",
             "rid" -> "getRequest", "title" -> "getRequest")), "data" -> errorMessage)), "getRequest")
           throw ex
-      }
     }
   }
 

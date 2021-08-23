@@ -14,14 +14,14 @@ class TestJobAPIServiceFor500Error  extends BaseSpec  {
 
   implicit val mockFc = mock[FrameworkContext];
   private implicit val system: ActorSystem = ActorSystem("test-actor-system", config)
-  private val postgresUtil = new PostgresDBUtil
-  val jobApiServiceActorRef = TestActorRef(new JobAPIService(postgresUtil))
   implicit val executionContext: ExecutionContextExecutor =  scala.concurrent.ExecutionContext.global
   implicit val timeout: Timeout = 20.seconds
 
 
   it should "check for 500 internal error" in {
 
+      val postgresUtil = new PostgresDBUtil
+      val jobApiServiceActorRef = TestActorRef(new JobAPIService(postgresUtil))
       intercept[Exception] {
         // submitRequest
         val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","tag":"test-tag","datasetConfig":{"type":"ml-task-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-1"}},"encryptionKey":"test@123"}}"""

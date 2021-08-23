@@ -40,7 +40,6 @@ class TestExperimentAPIService extends BaseSpec {
         postgresUtil.saveExperimentDefinition(req)
         val request2 = s"""{"id":"ekstep.analytics.experiment.create","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"expId":"UR1235","name":"USER_ORG","createdBy":"User1","description":"Experiment to get users to explore page ","criteria":{"type":"user","filters":{"emailVerified":true}},"data":{"startDate":"$startDate","endDate":"$endDate","key":"/org/profile","client":"portal","modulus":5}}}"""
         val resp = ExperimentAPIService.createRequest(request2, postgresUtil)
-        println(resp)
         resp.responseCode should be("OK")
         resp.result.get.get("status") should be (Some("SUBMITTED"))
         resp.result.get.get("status_msg") should be (Some("Experiment successfully submitted"))
@@ -89,7 +88,6 @@ class TestExperimentAPIService extends BaseSpec {
       resp.params.errorMsg should be (Map("status" -> "failed", "request" -> "Request should not be empty"))
       
       resp = ExperimentAPIService.createRequest(s"""{"id":"ekstep.analytics.experiment.create","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341","client_key":"dev-portal"},"request":{"expId":"UR1234","name":"USER_ORG","createdBy":"User1","description":"Experiment to get users to explore page ","criteria":{"type":"user"},"data":{"startDate":"$startDate","endDate":"$endDate","key":"/org/profile","client":"portal","modulus":5}}}""", postgresUtil)
-      println(resp)
       resp.responseCode should be("CLIENT_ERROR")
       resp.params.errorMsg should be (Map("status" -> "failed", "request.filters" -> "Criteria Filters should not be empty"))
       

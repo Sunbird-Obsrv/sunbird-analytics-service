@@ -39,18 +39,26 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
 
   val jobAPIActor = TestActorRef(new JobAPIService(postgresUtilMock) {
     override def receive: Receive = {
-      case req:DataRequest => {
+      case req: DataRequest => {
         if (req.channel.equals("channelId")) {
           sender() ! new Exception("Caused by: java.net.ConnectException: Connection refused (Connection refused)")
         } else {
           sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
         }
       }
-      case GetDataRequest(clientKey: String, requestId: String, config: Config) => {
-        sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST, Map())
+      case req: GetDataRequest => {
+        if (req.tag.equals("tag:channelId")) {
+          sender() ! new Exception("Caused by: java.net.ConnectException: Connection refused (Connection refused)")
+        } else {
+          sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST, Map())
+        }
       }
-      case DataRequestList(clientKey: String, limit: Int, config: Config) => {
-        sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
+      case req: DataRequestList => {
+        if (req.tag.equals("tag:channelId")) {
+          sender() ! new Exception("Caused by: java.net.ConnectException: Connection refused (Connection refused)")
+        } else {
+          sender() ! CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map())
+        }
       }
       case ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config) => {
         sender() ! CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map())
@@ -64,8 +72,12 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
       case ListDataSet(config: Config) => {
         sender() ! CommonUtil.OK(APIIds.LIST_DATASET, Map())
       }
-      case SearchRequest(request: String, config: Config) => {
-        sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
+      case req: SearchRequest => {
+        if (req.request.equals("{}")) {
+          sender() ! new Exception("Caused by: java.net.ConnectException: Connection refused (Connection refused)")
+        } else {
+          sender() ! CommonUtil.OK(APIIds.DATA_REQUEST, Map())
+        }
       }
     }
   })
@@ -308,10 +320,20 @@ class JobControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll wi
     reset(mockConfig);
     reset(mockTable);
     when(mockConfig.getBoolean("dataexhaust.authorization_check")).thenReturn(false);
+    when(mockConfig.getString("data_exhaust.list.limit")).thenReturn("10");
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
     when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
 
-    val result = controller.dataRequest().apply(FakeRequest().withHeaders(("X-Channel-ID", "channelId")).withJsonBody(Json.parse("""{}""")))
+    var result = controller.dataRequest().apply(FakeRequest().withHeaders(("X-Channel-ID", "channelId")).withJsonBody(Json.parse("""{}""")))
+    Helpers.status(result) should be (500)
+
+    result = controller.getJob("tag").apply(FakeRequest().withHeaders(("X-Channel-ID", "channelId")))
+    Helpers.status(result) should be (500)
+
+    result = controller.getJobList("tag").apply(FakeRequest().withHeaders(("X-Channel-ID", "channelId")));
+    Helpers.status(result) should be (500)
+
+    result = controller.searchRequest().apply(FakeRequest().withJsonBody(Json.parse("""{}""")))
     Helpers.status(result) should be (500)
   }
 

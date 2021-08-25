@@ -8,11 +8,19 @@ import java.util.Date
 
 class TestPostgresDBUtil extends FlatSpec with Matchers with BeforeAndAfterAll {
 
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    EmbeddedPostgresql.start()
+    EmbeddedPostgresql.createTables()
+  }
+
+  override def afterAll(): Unit = {
+    super.afterAll()
+    EmbeddedPostgresql.close()
+  }
   "PostgresDBUtil" should "execute queries" in {
     
     //consumer_id VARCHAR(100), channel VARCHAR(20), status INTEGER, created_by VARCHAR(100), created_on TIMESTAMP, updated_on TIMESTAMP
-    EmbeddedPostgresql.start()
-    EmbeddedPostgresql.createTables()
     EmbeddedPostgresql.execute("INSERT INTO geo_location_city_ipv4 (geoname_id, network_start_integer, network_last_integer) VALUES (1234, 1781746350, 1781746370);")
     EmbeddedPostgresql.execute("INSERT INTO geo_location_city (geoname_id, continent_name, country_iso_code, country_name, subdivision_1_iso_code, subdivision_1_name, subdivision_2_name, city_name, subdivision_1_custom_name, subdivision_1_custom_code, subdivision_2_custom_name) VALUES (1234, 'Asia', 'IN', 'India', 'KA', 'Karnataka', '', 'Bangalore', 'Karnataka', '29', 'Bangalore');")
     EmbeddedPostgresql.execute("INSERT INTO consumer_channel (consumer_id, channel, status, created_by, created_on, updated_on) VALUES('1234567', '56789', 1, 'sunbird', '2017-08-19 14:22:11.802755+0530', '2017-08-19 14:22:11.802755+0530');")

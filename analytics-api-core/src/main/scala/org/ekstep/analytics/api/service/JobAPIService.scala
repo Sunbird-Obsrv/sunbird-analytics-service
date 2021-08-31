@@ -262,8 +262,9 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val jobId = body.request.dataset.getOrElse("")
     val requestedBy = body.request.requestedBy.getOrElse("")
     val submissionDate = DateTime.now().toString("yyyy-MM-dd")
-    val requestId = _getRequestId(tag, jobId, requestedBy, channel, submissionDate)
     val requestConfig = body.request.datasetConfig.getOrElse(Map.empty)
+    val jobType = requestConfig.get("type").asInstanceOf[Option[String]]
+    val requestId = _getRequestId(tag, jobId, requestedBy, channel, submissionDate, jobType)
     val encryptionKey = body.request.encryptionKey
     val job = postgresDBUtil.getJobRequest(requestId, appendedTag)
     val iterationCount = if (job.nonEmpty) job.get.iteration.getOrElse(0) else 0
@@ -392,8 +393,9 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     postgresDBUtil.getDataset(datasetConfig.dataset_id).get
   }
 
-  def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String): String = {
-    val key = Array(tag, jobId, requestedBy, requestedChannel, submissionDate).mkString("|")
+  def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String, jobType: Option[String] = None): String = {
+    val key = if (jobType.isEmpty) Array(tag, jobId, requestedBy, requestedChannel, submissionDate).mkString("|")
+      else Array(tag, jobId, requestedBy, requestedChannel, submissionDate, jobType.get).mkString("|")
     MessageDigest.getInstance("MD5").digest(key.getBytes).map("%02X".format(_)).mkString
   }
   private def _validateRequest(channel: Option[String], datasetId: String, from: String, to: String, isPublic: Boolean = false)(implicit config: Config): Map[String, String] = {

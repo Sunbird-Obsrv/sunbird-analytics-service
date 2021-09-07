@@ -21,7 +21,7 @@ case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[Stri
 									 visibility: Option[String], authorizedRoles: Option[List[String]], availableFrom: Option[String],
 									 sampleRequest: Option[String], sampleResponse: Option[String], validationJson: Option[Map[String, Any]],
 									 druidQuery: Option[Map[String, Any]], limits: Option[Map[String, Any]], supportedFormats: Option[String],
-									 exhaustType: Option[String]);
+									 exhaustType: Option[String], datasetSubId: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)
@@ -129,10 +129,10 @@ object APIIds {
 
 case class JobStats(dtJobSubmitted: Long, dtJobCompleted:  Option[Long] = None, executionTime: Option[Long] = None);
 case class JobResponse(requestId: String, tag: String, dataset: String, requestedBy: String, requestedChannel: String, status: String, lastUpdated: Long, datasetConfig: Map[String, Any], attempts: Int, jobStats: Option[JobStats] = None, downloadUrls: Option[List[String]] = None, expiresAt: Option[Long] = None, statusMessage: Option[String] = None);
-case class DatasetResponse(dataset: String, datasetType: String, datasetConfig: Map[String, Any], visibility: String, version: String, sampleRequest: Option[String] = None, sampleResponse: Option[String] = None, availableFrom: String,
+case class DatasetResponse(dataset: String, datasetSubId: String, datasetType: String, datasetConfig: Map[String, Any], visibility: String, version: String, sampleRequest: Option[String] = None, sampleResponse: Option[String] = None, availableFrom: String,
 													 validationJson: Option[Map[String, Any]] = None, supportedFormats: Option[String] = None, exhaustType: Option[String] = None);
 case class JobConfig(tag: String, request_id: String, dataset: String, status: String, dataset_config: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String], iteration: Option[Int] = Option(0))
-case class DatasetConfig(dataset_id: String, dataset_type: String, dataset_config: Map[String, Any], visibility: String, version: String, authorized_roles: List[String], sample_request: Option[String] = None, sample_response: Option[String] = None, available_from: DateTime = new DateTime(),
+case class DatasetConfig(dataset_id: String, dataset_sub_id: String, dataset_type: String, dataset_config: Map[String, Any], visibility: String, version: String, authorized_roles: List[String], sample_request: Option[String] = None, sample_response: Option[String] = None, available_from: DateTime = new DateTime(),
 												 validation_json: Option[Map[String, Any]] = None, druid_query: Option[Map[String, Any]] = None, limits: Option[Map[String, Any]] = None, supported_formats: Option[String] = None, exhaust_type: Option[String] = None)
 
 //Experiment

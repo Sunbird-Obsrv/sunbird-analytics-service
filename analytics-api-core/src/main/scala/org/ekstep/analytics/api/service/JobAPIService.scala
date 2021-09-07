@@ -209,7 +209,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     if ("true".equals(isValid.get("status").get)) {
       val dataset = upsertDatasetRequest(body)
       val response = CommonUtil.caseClassToMap(_createDatasetResponse(dataset))
-      CommonUtil.OK(APIIds.ADD_DATASET_REQUEST, Map("message" -> s"Dataset ${dataset.dataset_id} added successfully"))
+      CommonUtil.OK(APIIds.ADD_DATASET_REQUEST, Map("message" -> s"Dataset ${dataset.dataset_sub_id} added successfully"))
     } else {
       CommonUtil.errorResponse(APIIds.ADD_DATASET_REQUEST, isValid.get("message").get, ResponseCode.CLIENT_ERROR.toString)
     }
@@ -282,6 +282,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   private def upsertDatasetRequest(body: RequestBody)(implicit config: Config, fc: FrameworkContext): DatasetRequest = {
 
     val datasetId = body.request.dataset.get
+    val datasetSubId = body.request.datasetSubId.getOrElse(datasetId)
     val datasetConf = body.request.datasetConfig.getOrElse(Map.empty)
     val datasetType = body.request.datasetType.get
     val visibility = body.request.visibility.get
@@ -296,7 +297,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val supportedFormats = body.request.supportedFormats
     val exhaustType = body.request.exhaustType
 
-    val datasetConfig = DatasetConfig(datasetId, datasetType, datasetConf, visibility, version, authorizedRoles, sampleRequest, sampleResponse, availableFrom, validationJson, druidQuery, limits, supportedFormats, exhaustType)
+    val datasetConfig = DatasetConfig(datasetId, datasetSubId, datasetType, datasetConf, visibility, version, authorizedRoles, sampleRequest, sampleResponse, availableFrom, validationJson, druidQuery, limits, supportedFormats, exhaustType)
     val datasetdetails = postgresDBUtil.getDataset(datasetId)
     if (datasetdetails.isEmpty) {
       _saveDatasetRequest(datasetConfig)
@@ -374,7 +375,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   private def _createDatasetResponse(dataset: DatasetRequest)(implicit config: Config, fc: FrameworkContext): DatasetResponse = {
 
-    DatasetResponse(dataset.dataset_id, dataset.dataset_type, dataset.dataset_config, dataset.visibility, dataset.version,
+    DatasetResponse(dataset.dataset_id, dataset.dataset_sub_id, dataset.dataset_type, dataset.dataset_config, dataset.visibility, dataset.version,
       dataset.sample_request, dataset.sample_response, dateFormat.print(new DateTime(dataset.available_from.get)),
       dataset.validation_json, dataset.supported_formats, dataset.exhaust_type)
   }

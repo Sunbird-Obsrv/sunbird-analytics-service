@@ -552,7 +552,7 @@ class TestJobAPIService extends BaseSpec  {
     val stringResponse3 = JSONUtils.serialize(res3.result.get)
     stringResponse3.contains("Dataset public-data-exhaust added successfully") should be(true)
 
-    val request = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"ml-task-detail-exhaust","datasetConfig":{},"datasetType":"druid","visibility":"public","version":"v1","authorizedRoles":["PROGRAM_MANAGER","PROGRAM_DESIGNER"],"druidQuery":{},"supportedFormats":"csv","exhaustType":"On-demand Exhaust"}}"""
+    val request = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","datasetSubId":"ml-task-detail-exhaust","datasetConfig":{},"datasetType":"druid","visibility":"public","version":"v1","authorizedRoles":["PROGRAM_MANAGER","PROGRAM_DESIGNER"],"druidQuery":{},"supportedFormats":"csv","exhaustType":"On-demand Exhaust"}}"""
     val res = jobApiServiceActorRef.underlyingActor.addDataSet(request)
     res.responseCode should be("OK")
     val stringResponse = JSONUtils.serialize(res.result.get)

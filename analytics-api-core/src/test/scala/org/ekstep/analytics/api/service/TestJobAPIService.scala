@@ -601,14 +601,13 @@ class TestJobAPIService extends BaseSpec  {
     response1.responseCode should be("OK")
     val responseData1 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(response1.result.get))
     responseData1.status should be("SUBMITTED")
-    responseData1.requestId should be("6C587A073563438E59C443F35EF515A9")
+    responseData1.dataset should be("druid-dataset")
 
     val request2 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","tag":"test-tag","datasetConfig":{"type":"ml-obs-question-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-2"}},"encryptionKey":"test@123"}}"""
     val response2 = jobApiServiceActorRef.underlyingActor.dataRequest(request2, "in.ekstep")
     response2.responseCode should be("OK")
     val responseData2 = JSONUtils.deserialize[JobResponse](JSONUtils.serialize(response2.result.get))
     responseData2.status should be("SUBMITTED")
-    responseData2.requestId should be("31C8129B39CFDE536164D67C3688ADD4")
-    
+    responseData1.dataset should be("druid-dataset")
   }
 }

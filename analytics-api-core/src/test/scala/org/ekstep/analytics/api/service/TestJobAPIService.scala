@@ -534,29 +534,35 @@ class TestJobAPIService extends BaseSpec  {
     when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
     doNothing().when(mockStorageService).closeContext()
 
-    val request1 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetConfig":{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal"]}}"""
+    val request1 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"progress-exhaust","datasetConfig":{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"non-druid","visibility":"private","version":"v1","authorizedRoles":["ORG_ADMIN","REPORT_ADMIN","CONTENT_CREATOR","COURSE_MENTOR"],"validationJson":{},"supportedFormats":"csv","exhaustType":"On-demand exhaust"}}"""
     val res1 = jobApiServiceActorRef.underlyingActor.addDataSet(request1)
     res1.responseCode should be("OK")
     val stringResponse1 = JSONUtils.serialize(res1.result.get)
     stringResponse1.contains("Dataset progress-exhaust added successfully") should be(true)
 
-    val request2 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"on-demand exhaust","visibility":"private","version":"v1","authorizedRoles":["portal", "app"],"availableFrom":"2021-01-01"}}"""
+    val request2 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"response-exhaust","datasetConfig":{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"},"datasetType":"non-druid","visibility":"private","version":"v1","authorizedRoles":["ORG_ADMIN","REPORT_ADMIN","CONTENT_CREATOR","COURSE_MENTOR"],"availableFrom":"2021-01-01","supportedFormats":"csv","exhaustType":"On-demand exhaust"}}"""
     val res2 = jobApiServiceActorRef.underlyingActor.addDataSet(request2)
     res2.responseCode should be("OK")
     val stringResponse2 = JSONUtils.serialize(res2.result.get)
     stringResponse2.contains("Dataset response-exhaust added successfully") should be(true)
 
-    val request3 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"public-data-exhaust","datasetConfig":{},"datasetType":"Public Data Exhaust","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}"}}"""
+    val request3 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"public-data-exhaust","datasetConfig":{},"datasetType":"non-druid","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}","supportedFormats":"csv","exhaustType":"Public exhaust"}}"""
     val res3 = jobApiServiceActorRef.underlyingActor.addDataSet(request3)
     res3.responseCode should be("OK")
     val stringResponse3 = JSONUtils.serialize(res3.result.get)
     stringResponse3.contains("Dataset public-data-exhaust added successfully") should be(true)
 
+    val request = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"ml-task-detail-exhaust","datasetConfig":{},"datasetType":"druid","visibility":"public","version":"v1","authorizedRoles":["PROGRAM_MANAGER","PROGRAM_DESIGNER"],"druidQuery":{},"supportedFormats":"csv","exhaustType":"On-demand Exhaust"}}"""
+    val res = jobApiServiceActorRef.underlyingActor.addDataSet(request)
+    res.responseCode should be("OK")
+    val stringResponse = JSONUtils.serialize(res.result.get)
+    stringResponse.contains("Dataset ml-task-detail-exhaust added successfully") should be(true)
+
     val res4 = jobApiServiceActorRef.underlyingActor.listDataSet()
     res4.responseCode should be("OK")
     val resultMap = res4.result.get
     val datasetsRes = JSONUtils.deserialize[List[DatasetResponse]](JSONUtils.serialize(resultMap.get("datasets").get))
-    datasetsRes.length should be(3)
+    datasetsRes.length should be(4)
 
     // Missing datasetId
     val request5 = """{"id":"ekstep.analytics.dataset.add","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"datasetConfig":{},"datasetType":"Public Data Exhaust","visibility":"public","version":"v1","authorizedRoles":["public"],"sampleRequest":"curl -X GET 'https://domain_name/api/dataset/get/public-data-exhaust?date_range=LAST_7_DAYS'","sampleResponse":"{\"id\":\"org.ekstep.analytics.public.telemetry.exhaust\",\"ver\":\"1.0\",\"ts\":\"2021-04-19T06:04:49.891+00:00\",\"params\":{\"resmsgid\":\"cc2b1053-ddcf-4ee1-a12e-d17212677e6e\",\"status\":\"successful\",\"client_key\":null},\"responseCode\":\"OK\",\"result\":{\"files\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"],\"periodWiseFiles\":{\"2021-04-14\":[\"https://data.domain_name/datasets/public-data-exhaust/2021-04-14.zip\"]}}}"}}"""

@@ -290,8 +290,13 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     val sampleRequest = body.request.sampleRequest
     val sampleResponse = body.request.sampleResponse
     val availableFrom = if(body.request.availableFrom.nonEmpty) dateFormat.parseDateTime(body.request.availableFrom.get) else DateTime.now()
+    val validationJson = body.request.validationJson
+    val druidQuery = body.request.druidQuery
+    val limits = body.request.limits
+    val supportedFormats = body.request.supportedFormats
+    val exhaustType = body.request.exhaustType
 
-    val datasetConfig = DatasetConfig(datasetId, datasetType, datasetConf, visibility, version, authorizedRoles, sampleRequest, sampleResponse, availableFrom)
+    val datasetConfig = DatasetConfig(datasetId, datasetType, datasetConf, visibility, version, authorizedRoles, sampleRequest, sampleResponse, availableFrom, validationJson, druidQuery, limits, supportedFormats, exhaustType)
     val datasetdetails = postgresDBUtil.getDataset(datasetId)
     if (datasetdetails.isEmpty) {
       _saveDatasetRequest(datasetConfig)
@@ -370,7 +375,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
   private def _createDatasetResponse(dataset: DatasetRequest)(implicit config: Config, fc: FrameworkContext): DatasetResponse = {
 
     DatasetResponse(dataset.dataset_id, dataset.dataset_type, dataset.dataset_config, dataset.visibility, dataset.version,
-      dataset.authorized_roles, dataset.sample_request, dataset.sample_response, dateFormat.print(new DateTime(dataset.available_from.get)))
+      dataset.sample_request, dataset.sample_response, dateFormat.print(new DateTime(dataset.available_from.get)),
+      dataset.validation_json, dataset.supported_formats, dataset.exhaust_type)
   }
 
   private def _saveJobRequest(jobConfig: JobConfig): JobRequest = {

@@ -33,21 +33,17 @@ class JobController @Inject() (
   def dataRequest() = Action.async { request: Request[AnyContent] =>
     val body: String = Json.stringify(request.body.asJson.get)
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    val authorizedRoles = config.getStringList("ondemand.dataexhaust.roles").toList
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(request, authorizedRoles) else (true, None)
-    if (checkFlag._1) {
-       val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
-       res.map { x =>
-         result(x.responseCode, JSONUtils.serialize(x))
-       }.recover {
-         case ex: Exception =>
-           InternalServerError(
-             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.DATA_REQUEST, ex.getMessage, "ERROR"))
-           ).as("application/json")
-       }
-    } else {
-       APILogger.log(checkFlag._2.get)
-       errResponse(checkFlag._2.get, APIIds.DATA_REQUEST, ResponseCode.FORBIDDEN.toString)
+    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val res = ask(jobAPIActor, DataRequest(body, RequestHeaderData(channelId, consumerId, userId, userAuthToken), channelId, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
@@ -69,46 +65,37 @@ class JobController @Inject() (
 
     val requestId = request.getQueryString("requestId").getOrElse("")
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    val authorizedRoles = config.getStringList("ondemand.dataexhaust.roles").toList
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(request, authorizedRoles) else (true, None)
-    if (checkFlag._1) {
-       val appendedTag = tag + ":" + channelId
-       val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, config)).mapTo[Response]
-       res.map { x =>
-          result(x.responseCode, JSONUtils.serialize(x))
-        }.recover {
-         case ex: Exception =>
-           InternalServerError(
-             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, ex.getMessage, "ERROR"))
-           ).as("application/json")
-       }
-    } else {
-        APILogger.log(checkFlag._2.get)
-        errResponse(checkFlag._2.get, APIIds.GET_DATA_REQUEST, ResponseCode.FORBIDDEN.toString)
+    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val appendedTag = tag + ":" + channelId
+    val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, RequestHeaderData(channelId, consumerId, userId, userAuthToken), config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
   def getJobList(tag: String) = Action.async { request: Request[AnyContent] =>
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    val authorizedRoles = config.getStringList("ondemand.dataexhaust.roles").toList
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(request, authorizedRoles) else (true, None)
-    if (checkFlag._1) {
-       val appendedTag = tag + ":" + channelId
-       val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
-       val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, config)).mapTo[Response]
-       res.map { x =>
-          result(x.responseCode, JSONUtils.serialize(x))
-       }.recover {
-         case ex: Exception =>
-           InternalServerError(
-             JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST_LIST, ex.getMessage, "ERROR"))
-           ).as("application/json")
-       }
-    }
-    else {
-       APILogger.log(checkFlag._2.get)
-       errResponse(checkFlag._2.get, APIIds.GET_DATA_REQUEST_LIST, ResponseCode.FORBIDDEN.toString)
+    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val appendedTag = tag + ":" + channelId
+    val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
+    val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, RequestHeaderData(channelId, consumerId, userId, userAuthToken), config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST_LIST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 

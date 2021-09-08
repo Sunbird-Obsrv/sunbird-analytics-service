@@ -2,15 +2,15 @@ package org.ekstep.analytics.api.service
 
 import java.security.MessageDigest
 import java.util.Calendar
-
 import akka.actor.Actor
 import com.typesafe.config.Config
+
 import javax.inject.{Inject, Singleton}
 import org.apache.commons.lang3.StringUtils
 import org.ekstep.analytics.api.util.CommonUtil.dateFormat
 import org.ekstep.analytics.api.util.JobRequest
 import org.ekstep.analytics.api.util._
-import org.ekstep.analytics.api.{APIIds, JobConfig, JobStats, OutputFormat, _}
+import org.ekstep.analytics.api.{APIIds, JobConfig, JobStats, OutputFormat, RequestHeaderData, _}
 import org.ekstep.analytics.framework.util.{HTTPClient, JSONUtils, RestUtil}
 import org.ekstep.analytics.framework.{FrameworkContext, JobStatus}
 import org.joda.time.DateTime
@@ -24,13 +24,13 @@ import scala.util.Sorting
   */
 
 
-case class DataRequest(request: String, channel: String, config: Config)
+case class DataRequest(request: String, requestHeaderData: RequestHeaderData, channel: String, config: Config)
 
 case class SearchRequest(request: String, config: Config)
 
-case class GetDataRequest(tag: String, requestId: String, config: Config)
+case class GetDataRequest(tag: String, requestId: String, requestHeaderData: RequestHeaderData, config: Config)
 
-case class DataRequestList(tag: String, limit: Int, config: Config)
+case class DataRequestList(tag: String, limit: Int, requestHeaderData: RequestHeaderData, config: Config)
 
 case class ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config)
 
@@ -40,14 +40,14 @@ case class AddDataSet(request: String, config: Config)
 
 case class ListDataSet(config: Config)
 
-class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
+class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIValidator) extends Actor  {
 
   implicit val fc = new FrameworkContext();
 
   def receive = {
-    case DataRequest(request: String, channelId: String, config: Config) => sender() ! dataRequest(request, channelId)(config, fc)
-    case GetDataRequest(tag: String, requestId: String, config: Config) => sender() ! getDataRequest(tag, requestId)(config, fc)
-    case DataRequestList(tag: String, limit: Int, config: Config) => sender() ! getDataRequestList(tag, limit)(config, fc)
+    case DataRequest(request: String, requestHeaderData: RequestHeaderData, channelId: String, config: Config) => sender() ! dataRequest(request, channelId, requestHeaderData)(config, fc)
+    case GetDataRequest(tag: String, requestId: String, requestHeaderData: RequestHeaderData, config: Config) => sender() ! getDataRequest(tag, requestId, requestHeaderData)(config, fc)
+    case DataRequestList(tag: String, limit: Int, requestHeaderData: RequestHeaderData, config: Config) => sender() ! getDataRequestList(tag, limit, requestHeaderData)(config, fc)
     case ChannelData(channel: String, eventType: String, from: Option[String], to: Option[String], since: Option[String], config: Config) => sender() ! getChannelData(channel, eventType, from, to, since)(config, fc)
     case PublicData(datasetId: String, from: Option[String], to: Option[String], since: Option[String], date: Option[String], dateRange: Option[String], config: Config) => sender() ! getPublicData(datasetId, from, to, since, date, dateRange)(config, fc)
     case AddDataSet(request: String, config: Config) => sender() ! addDataSet(request)(config, fc)
@@ -60,14 +60,21 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
 
   val storageType = AppConf.getStorageType()
 
-  def dataRequest(request: String, channel: String)(implicit config: Config, fc: FrameworkContext): Response = {
+  def dataRequest(request: String, channel: String, requestHeaderData: RequestHeaderData)(implicit config: Config, fc: FrameworkContext): Response = {
     val body = JSONUtils.deserialize[RequestBody](request)
-    val isValid = _validateReq(body)
+    val datasetSubId = body.request.datasetSubId.getOrElse("")
+    val isValid = apiValidator.validateSubmitReq(body, datasetSubId)
     if ("true".equals(isValid.get("status").get)) {
       try {
-        val job = upsertRequest(body, channel)
-        val response = CommonUtil.caseClassToMap(_createJobResponse(job))
-        CommonUtil.OK(APIIds.DATA_REQUEST, response)
+        val authCheckFlag = apiValidator.authorizeDataExhaustRequest(requestHeaderData, datasetSubId)
+        if (authCheckFlag._1) {
+          val job = upsertRequest(body, channel)
+          val response = CommonUtil.caseClassToMap(_createJobResponse(job))
+          CommonUtil.OK(APIIds.DATA_REQUEST, response)
+        } else {
+          APILogger.log(authCheckFlag._2.get)
+          CommonUtil.errorResponse(APIIds.DATA_REQUEST, authCheckFlag._2.get, ResponseCode.FORBIDDEN.toString)
+        }
       } catch {
         case ex: Exception =>
           ex.printStackTrace()
@@ -76,7 +83,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
             "rid" -> "submitRequest", "title" -> "submitRequest")), "data" -> errorMessage)), "submitRequest")
           throw ex
       }
-
     } else {
       CommonUtil.errorResponse(APIIds.DATA_REQUEST, isValid.get("message").get, ResponseCode.CLIENT_ERROR.toString)
     }
@@ -104,14 +110,21 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, isValid("message"), ResponseCode.CLIENT_ERROR.toString)
   }
 
-  def getDataRequest(tag: String, requestId: String)(implicit config: Config, fc: FrameworkContext): Response = {
+  def getDataRequest(tag: String, requestId: String, requestHeaderData: RequestHeaderData)(implicit config: Config, fc: FrameworkContext): Response = {
     try {
       val job = postgresDBUtil.getJobRequest(requestId, tag)
       if (job.isEmpty) {
         CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, "no job available with the given request_id and tag", ResponseCode.OK.toString)
       } else {
-        val jobStatusRes = _createJobResponse(job.get)
-        CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
+        val datasetSubId = job.get.request_data.getOrElse("type", job.get.job_id).asInstanceOf[String]
+        val authCheckFlag = apiValidator.authorizeDataExhaustRequest(requestHeaderData, datasetSubId)
+        if (authCheckFlag._1) {
+          val jobStatusRes = _createJobResponse(job.get)
+          CommonUtil.OK(APIIds.GET_DATA_REQUEST, CommonUtil.caseClassToMap(jobStatusRes))
+        } else {
+          APILogger.log(authCheckFlag._2.get)
+          CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, authCheckFlag._2.get, ResponseCode.FORBIDDEN.toString)
+        }
       }
     } catch {
         case ex: Exception =>
@@ -123,12 +136,18 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
     }
   }
 
-  def getDataRequestList(tag: String, limit: Int)(implicit config: Config, fc: FrameworkContext): Response = {
+  def getDataRequestList(tag: String, limit: Int, requestHeaderData: RequestHeaderData)(implicit config: Config, fc: FrameworkContext): Response = {
     try {
-      val currDate = DateTime.now()
       val jobRequests = postgresDBUtil.getJobRequestList(tag, limit)
-      val result = jobRequests.map { x => _createJobResponse(x) }
-      CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+      val datasetSubId = if(jobRequests.size > 0) jobRequests.head.request_data.getOrElse("type", jobRequests.head.job_id).asInstanceOf[String] else ""
+      val authCheckFlag = apiValidator.authorizeDataExhaustRequest(requestHeaderData, datasetSubId)
+      if (authCheckFlag._1) {
+        val result = jobRequests.map { x => _createJobResponse(x) }
+        CommonUtil.OK(APIIds.GET_DATA_REQUEST_LIST, Map("count" -> Int.box(jobRequests.size), "jobs" -> result))
+      } else {
+        APILogger.log(authCheckFlag._2.get)
+        CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST_LIST, authCheckFlag._2.get, ResponseCode.FORBIDDEN.toString)
+      }
     } catch {
       case ex: Exception =>
         ex.printStackTrace()
@@ -303,18 +322,6 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil) extends Actor  {
       _saveDatasetRequest(datasetConfig)
     } else {
       _updateDatasetRequest(datasetConfig)
-    }
-  }
-
-  private def _validateReq(body: RequestBody)(implicit config: Config): Map[String, String] = {
-    if (body.request.tag.isEmpty) {
-        Map("status" -> "false", "message" -> "tag is empty")
-    } else if (body.request.dataset.isEmpty) {
-      Map("status" -> "false", "message" -> "dataset is empty")
-    } else if (body.request.datasetConfig.isEmpty) {
-      Map("status" -> "false", "message" -> "datasetConfig is empty")
-    } else {
-      Map("status" -> "true")
     }
   }
 

@@ -127,6 +127,7 @@ object APIIds {
 	val LIST_DATASET = "ekstep.analytics.dataset.list"
 }
 
+case class RequestHeaderData(channelId: String, consumerId: String, userId: String, userAuthToken: Option[String] = None)
 case class JobStats(dtJobSubmitted: Long, dtJobCompleted:  Option[Long] = None, executionTime: Option[Long] = None);
 case class JobResponse(requestId: String, tag: String, dataset: String, requestedBy: String, requestedChannel: String, status: String, lastUpdated: Long, datasetConfig: Map[String, Any], attempts: Int, jobStats: Option[JobStats] = None, downloadUrls: Option[List[String]] = None, expiresAt: Option[Long] = None, statusMessage: Option[String] = None);
 case class DatasetResponse(dataset: String, datasetSubId: String, datasetType: String, datasetConfig: Map[String, Any], visibility: String, version: String, sampleRequest: Option[String] = None, sampleResponse: Option[String] = None, availableFrom: String,

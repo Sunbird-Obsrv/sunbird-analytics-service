@@ -165,6 +165,10 @@ class PostgresDBUtil {
         sql"""select * from ${DatasetRequest.table} where dataset_id = $datasetId""".map(rs => DatasetRequest(rs)).first().apply()
     }
 
+    def getDatasetBySubId(datasetSubId: String): Option[DatasetRequest] = {
+        sql"""select * from ${DatasetRequest.table} where dataset_sub_id = $datasetSubId""".map(rs => DatasetRequest(rs)).first().apply()
+    }
+
     def getDatasetList(): List[DatasetRequest] = {
         sql"""select * from ${DatasetRequest.table}""".map(rs => DatasetRequest(rs)).list().apply()
     }

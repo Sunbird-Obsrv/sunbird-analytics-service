@@ -678,5 +678,25 @@ class TestJobAPIService extends BaseSpec  {
     response6.responseCode should be("FORBIDDEN")
     response6.params.errmsg should be("user not found.")
 
+    // check for roles from dataset metadata: success case
+    val submissionDate = DateTime.now().toString("yyyy-MM-dd")
+    EmbeddedPostgresql.execute(
+      s"""truncate table dataset_metadata;""")
+    EmbeddedPostgresql.execute(
+      s"""insert into dataset_metadata ("dataset_id", "dataset_sub_id", "dataset_config", "visibility", "dataset_type", "version",
+          "authorized_roles", "available_from", "sample_request", "sample_response")
+          values ('druid-dataset', 'ml-obs-question-detail-exhaust', '{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"}',
+           'private', 'On-Demand', '1.0', '{"PROGRAM_MANAGER"}', '$submissionDate', '', '');""")
+
+    reset(cacheUtil);
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(0)
+    val userResponse6 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-11 07:52:25:227+0000","params":{"resmsgid":null,"msgid":"43aaf2c2-8ac5-456c-8edf-e17bf2b4f1a4","err":null,"status":"success","errmsg":null},"responseCode":"OK","result":{"response":{"tncLatestVersion":"v1","maskedPhone":"******4105","rootOrgName":null,"roles":["PUBLIC"],"channel":"testChannel","stateValidated":false,"isDeleted":false,"organisations":[{"orgJoinDate":"2020-08-31 10:18:17:833+0000","organisationId":"0126796199493140480","isDeleted":false,"hashTagId":"0126796199493140480","roles":["PROGRAM_MANAGER"],"id":"01309794241378713625","userId":"4fe7fe33-5e18-4f15-82d2-02255abc1501"}],"countryCode":"+91","flagsValue":3,"tncLatestVersionUrl":"https://dev-sunbird-temp.azureedge.net/portal/terms-and-conditions-v1.html","maskedEmail":"15***********@yopmail.com","id":"4fe7fe33-5e18-4f15-82d2-02255abc1501","email":"15***********@yopmail.com","rootOrg":{"dateTime":null,"preferredLanguage":null,"approvedBy":null,"channel":"custodian","description":"Pre-prod Custodian Organization","updatedDate":null,"addressId":null,"provider":null,"locationId":null,"orgCode":null,"theme":null,"id":"testChannel","communityId":null,"isApproved":null,"email":null,"slug":"testChannel","identifier":"0126796199493140480","thumbnail":null,"orgName":"Pre-prod Custodian Organization","updatedBy":null,"locationIds":[],"externalId":null,"isRootOrg":true,"rootOrgId":"0126796199493140480","approvedDate":null,"imgUrl":null,"homeUrl":null,"orgTypeId":null,"isDefault":true,"contactDetail":null,"createdDate":"2019-01-18 09:48:13:428+0000","createdBy":"system","parentOrgId":null,"hashTagId":"0126796199493140480","noOfMembers":null,"status":1},"identifier":"4fe7fe33-5e18-4f15-82d2-02255abc1501","phoneVerified":true,"userName":"1598868632-71","rootOrgId":"0126796199493140480","promptTnC":true,"firstName":"1598868632-71","emailVerified":true,"createdDate":"2020-08-31 10:18:17:826+0000","phone":"******4105","userType":"OTHER","status":1}}}"""
+    when(restUtilMock.get[Response]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Response](userResponse6))
+    val requestHeaderData7 = RequestHeaderData("testChannel", "consumer-1", "testUser", Option("testUserToken"))
+    val request7 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","datasetSubId":"ml-obs-question-detail-exhaust","tag":"test-tag","datasetConfig":{"type":"ml-obs-question-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-2"}},"encryptionKey":"test@123"}}"""
+    val response7 = jobApiServiceActorRef.underlyingActor.dataRequest(request7, "testChannel", requestHeaderData7)
+    response7.responseCode should be("OK")
+
   }
 }

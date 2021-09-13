@@ -49,12 +49,7 @@ class APIValidator @Inject()(postgresDBUtil: PostgresDBUtil, restUtil: APIRestUt
 
   def getInvalidFieldName(errorInfo: String): String = {
     val message = errorInfo.split("error:")
-    val defaultValidationErrMsg = "Required field is missing"
-    if (message.length > 1) {
-      message(1).split("level").head.trim
-    } else {
-      defaultValidationErrMsg
-    }
+    message(1).split("level").head.trim
   }
 
   def authorizeDataExhaustRequest(requestHeaderData: RequestHeaderData, datasetSubId: String)(implicit config: Config): (Boolean, Option[String]) = {

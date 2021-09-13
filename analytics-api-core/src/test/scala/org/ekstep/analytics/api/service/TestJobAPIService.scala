@@ -669,6 +669,20 @@ class TestJobAPIService extends BaseSpec  {
     response5.responseCode should be("FORBIDDEN")
     response5.params.errmsg should be("You are not authorized.")
 
+    EmbeddedPostgresql.execute(
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time", "iteration") values ('consumer-1:testChannel', '562CDD1241226D5CA2E777DA522691EF-1', 'assessment-score-report',
+        'SUCCESS',  '{"batchFilter":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-2', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"https://sunbird.org/test/signed/file1.csv", "https://sunbird.org/test/signed/file2.csv"}', '2020-09-08T13:50:39.019+05:30', '10', '0');""")
+
+    val readResponse5 = jobApiServiceActorRef.underlyingActor.getDataRequest("consumer-1:testChannel", "562CDD1241226D5CA2E777DA522691EF-1", requestHeaderData4)
+    readResponse5.responseCode should be("FORBIDDEN")
+    readResponse5.params.errmsg should be("You are not authorized.")
+
+    val listResponse5 = jobApiServiceActorRef.underlyingActor.getDataRequestList("consumer-1", 10, requestHeaderData4)
+    listResponse5.responseCode should be("FORBIDDEN")
+    listResponse5.params.errmsg should be("You are not authorized.")
+
     // Failure cases: user read API failure
     val userResponse5 = """{"id":"api.user.read","ver":"v2","ts":"2020-09-17 13:39:41:496+0000","params":{"resmsgid":null,"msgid":"08db1cfd-68a9-42e9-87ce-2e53e33f8b6d","err":"USER_NOT_FOUND","status":"USER_NOT_FOUND","errmsg":"user not found."},"responseCode":"RESOURCE_NOT_FOUND","result":{}}"""
     when(restUtilMock.get[Response]("https://dev.sunbirded.org/api/user/v2/read/testUser", Option(Map("x-authenticated-user-token" -> "testUserToken")))).thenReturn(JSONUtils.deserialize[Response](userResponse5))

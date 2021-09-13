@@ -63,7 +63,8 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
   def dataRequest(request: String, channel: String, requestHeaderData: RequestHeaderData)(implicit config: Config, fc: FrameworkContext): Response = {
     val body = JSONUtils.deserialize[RequestBody](request)
     val datasetSubId = body.request.datasetSubId.getOrElse("")
-    val isValid = apiValidator.validateSubmitReq(body, datasetSubId)
+    val requestBodyMap = JSONUtils.deserialize[Map[String, Any]](request).getOrElse("request", Map()).asInstanceOf[Map[String, Any]]
+    val isValid = apiValidator.validateSubmitReq(requestBodyMap, datasetSubId)
     if ("true".equals(isValid.get("status").get)) {
       try {
         val authCheckFlag = apiValidator.authorizeDataExhaustRequest(requestHeaderData, datasetSubId)

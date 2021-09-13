@@ -692,15 +692,15 @@ class TestJobAPIService extends BaseSpec  {
     response6.responseCode should be("FORBIDDEN")
     response6.params.errmsg should be("user not found.")
 
-    // check for roles from dataset metadata: success case
+    // check for validation schema & roles from dataset metadata: success case
     val submissionDate = DateTime.now().toString("yyyy-MM-dd")
     EmbeddedPostgresql.execute(
       s"""truncate table dataset_metadata;""")
     EmbeddedPostgresql.execute(
       s"""insert into dataset_metadata ("dataset_id", "dataset_sub_id", "dataset_config", "visibility", "dataset_type", "version",
-          "authorized_roles", "available_from", "sample_request", "sample_response")
+          "authorized_roles", "available_from", "sample_request", "sample_response", "validation_json")
           values ('druid-dataset', 'ml-obs-question-detail-exhaust', '{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"}',
-           'private', 'On-Demand', '1.0', '{"PROGRAM_MANAGER"}', '$submissionDate', '', '');""")
+           'private', 'On-Demand', '1.0', '{"PROGRAM_MANAGER"}', '$submissionDate', '', '', '{"type":"object","properties":{"tag":{"id":"http://api.ekstep.org/dataexhaust/request/tag","type":"string"},"dataset":{"id":"http://api.ekstep.org/dataexhaust/request/dataset","type":"string"},"requestedBy":{"id":"http://api.ekstep.org/dataexhaust/request/requestedBy","type":"string"},"encryptionKey":{"id":"http://api.ekstep.org/dataexhaust/request/encryptionKey","type":"string"},"datasetConfig":{"id":"http://api.ekstep.org/dataexhaust/request/datasetConfig","type":"object"}},"required":["tag","dataset","datasetConfig"]}');""")
 
     reset(cacheUtil);
     when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
@@ -711,6 +711,13 @@ class TestJobAPIService extends BaseSpec  {
     val request7 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","datasetSubId":"ml-obs-question-detail-exhaust","tag":"test-tag","datasetConfig":{"type":"ml-obs-question-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-2"}},"encryptionKey":"test@123"}}"""
     val response7 = jobApiServiceActorRef.underlyingActor.dataRequest(request7, "testChannel", requestHeaderData7)
     response7.responseCode should be("OK")
+
+    // check for validation schema from dataset metadata: failure case
+    val requestHeaderData8 = RequestHeaderData("testChannel", "consumer-1", "testUser", Option("testUserToken"))
+    val request8 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"datasetSubId":"ml-obs-question-detail-exhaust","tag":"test-tag","requestedBy":"testUser","datasetConfig":{"type":"ml-obs-question-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-2"}},"encryptionKey":"test@123"}}"""
+    val response8 = jobApiServiceActorRef.underlyingActor.dataRequest(request8, "testChannel", requestHeaderData8)
+    response8.responseCode should be("CLIENT_ERROR")
+    response8.params.errmsg should be("""Request object has missing required properties (["dataset"])""")
 
   }
 }

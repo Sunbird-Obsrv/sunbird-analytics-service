@@ -1,7 +1,12 @@
 package org.ekstep.analytics.api.util
 
+import com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
+import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.github.fge.jsonschema.main.{JsonSchema, JsonSchemaFactory}
 import com.typesafe.config.Config
-import org.ekstep.analytics.api.{RequestBody, RequestHeaderData, Response}
+import org.ekstep.analytics.api.{Request, RequestBody, RequestHeaderData, Response}
+
+import java.util
 import javax.inject.Inject
 import javax.inject.Singleton
 import scala.collection.JavaConversions._
@@ -11,22 +16,44 @@ class APIValidator @Inject()(postgresDBUtil: PostgresDBUtil, restUtil: APIRestUt
 
   implicit val className = "org.ekstep.analytics.api.util.APIValidator"
 
-  def validateSubmitReq(body: RequestBody, datasetSubId: String)(implicit config: Config): Map[String, String] = {
+  def validateSubmitReq(reqBody: Map[String, Any], datasetSubId: String)(implicit config: Config): Map[String, String] = {
     val datasetdetails = postgresDBUtil.getDatasetBySubId(datasetSubId)
-    if (datasetdetails.isEmpty) {
-      if (body.request.tag.isEmpty) {
+    if (datasetdetails.isEmpty || datasetdetails.get.validation_json.isEmpty) {
+      val body = JSONUtils.deserialize[Request](JSONUtils.serialize(reqBody))
+      if (body.tag.isEmpty) {
         Map("status" -> "false", "message" -> "tag is empty")
-      } else if (body.request.dataset.isEmpty) {
+      } else if (body.dataset.isEmpty) {
         Map("status" -> "false", "message" -> "dataset is empty")
-      } else if (body.request.datasetConfig.isEmpty) {
+      } else if (body.datasetConfig.isEmpty) {
         Map("status" -> "false", "message" -> "datasetConfig is empty")
       } else {
         Map("status" -> "true")
       }
     } else {
-      // To:Do - Validate using json
-      //val validationJson = datasetdetails.get.validation_json
-      Map("status" -> "true")
+      val objectMapper = new ObjectMapper()
+      objectMapper.registerModule(DefaultScalaModule)
+      val validationJson = objectMapper.convertValue[JsonNode](datasetdetails.get.validation_json.get, classOf[JsonNode])
+      val requestJson = objectMapper.convertValue[JsonNode](reqBody, classOf[JsonNode])
+
+      val factory = JsonSchemaFactory.byDefault()
+      val schema = factory.getJsonSchema(validationJson)
+      val report = schema.validate(requestJson)
+      if (report.isSuccess) {
+        Map("status" -> "true")
+      } else {
+        val errMsg = getInvalidFieldName(report.toString)
+        Map("status" -> "false", "message" -> s"Request $errMsg")
+      }
+    }
+  }
+
+  def getInvalidFieldName(errorInfo: String): String = {
+    val message = errorInfo.split("error:")
+    val defaultValidationErrMsg = "Required field is missing"
+    if (message.length > 1) {
+      message(1).split("level").head.trim
+    } else {
+      defaultValidationErrMsg
     }
   }
 

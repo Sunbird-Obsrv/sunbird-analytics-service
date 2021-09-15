@@ -165,6 +165,10 @@ class PostgresDBUtil {
         sql"""select * from ${DatasetRequest.table} where dataset_id = $datasetId""".map(rs => DatasetRequest(rs)).first().apply()
     }
 
+    def getDatasetBySubId(datasetSubId: String): Option[DatasetRequest] = {
+        sql"""select * from ${DatasetRequest.table} where dataset_sub_id = $datasetSubId""".map(rs => DatasetRequest(rs)).first().apply()
+    }
+
     def getDatasetList(): List[DatasetRequest] = {
         sql"""select * from ${DatasetRequest.table}""".map(rs => DatasetRequest(rs)).list().apply()
     }
@@ -210,37 +214,57 @@ class PostgresDBUtil {
     def saveDatasetRequest(datasetRequest: DatasetConfig) = {
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
         val table = DatasetRequest.tableName
-        val insertQry = s"INSERT INTO $table (dataset_id, dataset_config, visibility, dataset_type, version, authorized_roles, available_from, sample_request, sample_response) values (?, ?::json, ?, ?, ?, ?, ?, ?, ?)";
+        val insertQry = s"INSERT INTO $table (dataset_id, dataset_sub_id, dataset_config, visibility, dataset_type, version, authorized_roles, available_from, sample_request, sample_response, validation_json, druid_query, limits, supported_formats, exhaust_type) values (?, ?, ?::json, ?, ?, ?, ?, ?, ?, ?, ?::json, ?::json, ?::json, ?, ?)";
         val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
         pstmt.setString(1, datasetRequest.dataset_id);
-        pstmt.setString(2, datasetConfig);
-        pstmt.setString(3, datasetRequest.visibility);
-        pstmt.setString(4, datasetRequest.dataset_type);
-        pstmt.setString(5, datasetRequest.version);
+        pstmt.setString(2, datasetRequest.dataset_sub_id);
+        pstmt.setString(3, datasetConfig);
+        pstmt.setString(4, datasetRequest.visibility);
+        pstmt.setString(5, datasetRequest.dataset_type);
+        pstmt.setString(6, datasetRequest.version);
         val authorizedRoles = datasetRequest.authorized_roles.toArray.asInstanceOf[Array[Object]];
-        pstmt.setArray(6, dbc.createArrayOf("text", authorizedRoles));
-        pstmt.setTimestamp(7, new Timestamp(datasetRequest.available_from.getMillis));
-        pstmt.setString(8, datasetRequest.sample_request.getOrElse(""));
-        pstmt.setString(9, datasetRequest.sample_response.getOrElse(""));
+        pstmt.setArray(7, dbc.createArrayOf("text", authorizedRoles));
+        pstmt.setTimestamp(8, new Timestamp(datasetRequest.available_from.getMillis));
+        pstmt.setString(9, datasetRequest.sample_request.getOrElse(""));
+        pstmt.setString(10, datasetRequest.sample_response.getOrElse(""));
+        val validationJson = datasetRequest.validation_json.getOrElse(Map.empty)
+        pstmt.setString(11, JSONUtils.serialize(validationJson));
+        val druidQuery = datasetRequest.druid_query.getOrElse(Map.empty)
+        pstmt.setString(12, JSONUtils.serialize(druidQuery));
+        val limits = datasetRequest.limits.getOrElse(Map.empty)
+        pstmt.setString(13, JSONUtils.serialize(limits));
+        val supportedFormats = datasetRequest.supported_formats.getOrElse(List.empty[String]).toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(14, dbc.createArrayOf("text", supportedFormats));
+        pstmt.setString(15, datasetRequest.exhaust_type.getOrElse(""));
         pstmt.execute()
     }
 
     def updateDatasetRequest(datasetRequest: DatasetConfig) = {
         val table = DatasetRequest.tableName
-        val updateQry = s"UPDATE $table SET available_from = ?, dataset_type=?, dataset_config=?::json, visibility=?, version=?, authorized_roles=?, sample_request=?, sample_response=? WHERE dataset_id=?";
+        val updateQry = s"UPDATE $table SET dataset_sub_id = ?, available_from = ?, dataset_type=?, dataset_config=?::json, visibility=?, version=?, authorized_roles=?, sample_request=?, sample_response=?, validation_json=?::json, druid_query=?::json, limits=?::json, supported_formats=?, exhaust_type=? WHERE dataset_id=?";
         val datasetConfig = JSONUtils.serialize(datasetRequest.dataset_config)
         val pstmt: PreparedStatement = dbc.prepareStatement(updateQry);
-        pstmt.setTimestamp(1, new Timestamp(datasetRequest.available_from.getMillis));
-        pstmt.setString(2, datasetRequest.dataset_type);
-        pstmt.setString(3, datasetConfig);
-        pstmt.setString(4, datasetRequest.visibility);
-        pstmt.setString(5, datasetRequest.version);
+        pstmt.setString(1, datasetRequest.dataset_sub_id);
+        pstmt.setTimestamp(2, new Timestamp(datasetRequest.available_from.getMillis));
+        pstmt.setString(3, datasetRequest.dataset_type);
+        pstmt.setString(4, datasetConfig);
+        pstmt.setString(5, datasetRequest.visibility);
+        pstmt.setString(6, datasetRequest.version);
         val authorizedRoles = datasetRequest.authorized_roles.toArray.asInstanceOf[Array[Object]];
-        pstmt.setArray(6, dbc.createArrayOf("text", authorizedRoles));
+        pstmt.setArray(7, dbc.createArrayOf("text", authorizedRoles));
         dbc.createArrayOf("text", authorizedRoles)
-        pstmt.setString(7, datasetRequest.sample_request.getOrElse(""));
-        pstmt.setString(8, datasetRequest.sample_response.getOrElse(""));
-        pstmt.setString(9, datasetRequest.dataset_id);
+        pstmt.setString(8, datasetRequest.sample_request.getOrElse(""));
+        pstmt.setString(9, datasetRequest.sample_response.getOrElse(""));
+        val validationJson = datasetRequest.validation_json.getOrElse(Map.empty)
+        pstmt.setString(10, JSONUtils.serialize(validationJson));
+        val druidQuery = datasetRequest.druid_query.getOrElse(Map.empty)
+        pstmt.setString(11, JSONUtils.serialize(druidQuery));
+        val limits = datasetRequest.limits.getOrElse(Map.empty)
+        pstmt.setString(12, JSONUtils.serialize(limits));
+        val supportedFormats = datasetRequest.supported_formats.getOrElse(List.empty[String]).toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(13, dbc.createArrayOf("text", supportedFormats));
+        pstmt.setString(14, datasetRequest.exhaust_type.getOrElse(""));
+        pstmt.setString(15, datasetRequest.dataset_id);
         pstmt.execute()
     }
 
@@ -424,20 +448,24 @@ object JobRequest extends SQLSyntaxSupport[JobRequest] {
     )
 }
 
-case class DatasetRequest(dataset_id: String, dataset_config: Map[String, Any], visibility: String, dataset_type: String,
+case class DatasetRequest(dataset_id: String, dataset_sub_id: String, dataset_config: Map[String, Any], visibility: String, dataset_type: String,
                           version: String , authorized_roles: List[String], available_from: Option[Long],
-                          sample_request: Option[String], sample_response: Option[String]) {
-    def this() = this("", Map[String, Any](), "", "", "", List(""), None, None, None)
+                          sample_request: Option[String], sample_response: Option[String], validation_json: Option[Map[String, Any]],
+                          druid_query: Option[Map[String, Any]], limits: Option[Map[String, Any]], supported_formats: Option[List[String]],
+                          exhaust_type: Option[String]) {
+    def this() = this("", "", Map[String, Any](), "", "", "", List(""), None, None, None, None, None, None, None, None)
 }
 
 object DatasetRequest extends SQLSyntaxSupport[DatasetRequest] {
     override val tableName = AppConfig.getString("postgres.table.dataset_metadata.name")
-    override val columns = Seq("dataset_id", "dataset_config", "visibility", "dataset_type", "version",
-        "authorized_roles", "available_from", "sample_request", "sample_response")
+    override val columns = Seq("dataset_id", "dataset_sub_id", "dataset_config", "visibility", "dataset_type", "version",
+        "authorized_roles", "available_from", "sample_request", "sample_response", "validation_json", "druid_query", "limits",
+        "supported_formats", "exhaust_type")
     override val useSnakeCaseColumnName = false
 
     def apply(rs: WrappedResultSet) = new DatasetRequest(
         rs.string("dataset_id"),
+        rs.string("dataset_sub_id"),
         JSONUtils.deserialize[Map[String, Any]](rs.string("dataset_config")),
         rs.string("visibility"),
         rs.string("dataset_type"),
@@ -445,7 +473,12 @@ object DatasetRequest extends SQLSyntaxSupport[DatasetRequest] {
         rs.array("authorized_roles").getArray.asInstanceOf[Array[String]].toList,
         if(rs.timestampOpt("available_from").nonEmpty) Option(rs.timestamp("available_from").getTime) else None,
         rs.stringOpt("sample_request"),
-        rs.stringOpt("sample_response")
+        rs.stringOpt("sample_response"),
+        if(rs.stringOpt("validation_json").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("validation_json"))) else None,
+        if(rs.stringOpt("druid_query").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("druid_query"))) else None,
+        if(rs.stringOpt("limits").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("limits"))) else None,
+        if(rs.arrayOpt("supported_formats").nonEmpty) Option(rs.array("supported_formats").getArray.asInstanceOf[Array[String]].toList) else None,
+        rs.stringOpt("exhaust_type")
     )
 }
 

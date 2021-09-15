@@ -3,10 +3,12 @@ package org.ekstep.analytics.api.service
 import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 import akka.util.Timeout
-import org.ekstep.analytics.api.BaseSpec
-import org.ekstep.analytics.api.util.{EmbeddedPostgresql, PostgresDBUtil}
+import com.google.common.collect.Table
+import org.ekstep.analytics.api.{BaseSpec, RequestHeaderData}
+import org.ekstep.analytics.api.util.{APIRestUtil, APIValidator, CacheUtil, EmbeddedPostgresql, PostgresDBUtil}
 import org.ekstep.analytics.framework.FrameworkContext
 import org.sunbird.cloud.storage.BaseStorageService
+
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContextExecutor
 
@@ -21,11 +23,15 @@ class TestJobAPIServiceFor500Error  extends BaseSpec  {
   it should "check for 500 internal error" in {
 
       val postgresUtil = new PostgresDBUtil
-      val jobApiServiceActorRef = TestActorRef(new JobAPIService(postgresUtil))
+      val restUtilMock = mock[APIRestUtil]
+      val cacheUtil = mock[CacheUtil]
+      val apiValidator = new APIValidator(postgresUtil, restUtilMock, cacheUtil)
+      val jobApiServiceActorRef = TestActorRef(new JobAPIService(postgresUtil, apiValidator))
+      val requestHeaderData = RequestHeaderData("in.ekstep", "consumer-1", "test-1")
       intercept[Exception] {
         // submitRequest
         val request1 = """{"id":"ekstep.analytics.data.out","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"dataset":"druid-dataset","tag":"test-tag","datasetConfig":{"type":"ml-task-detail-exhaust","params":{"programId":"program-1","state_slug":"apekx","solutionId":"solution-1"}},"encryptionKey":"test@123"}}"""
-        val response = jobApiServiceActorRef.underlyingActor.dataRequest(request1, "in.ekstep")
+        val response = jobApiServiceActorRef.underlyingActor.dataRequest(request1, "in.ekstep", requestHeaderData)
       }
       intercept[Exception] {
         // searchRequest
@@ -34,11 +40,11 @@ class TestJobAPIServiceFor500Error  extends BaseSpec  {
       }
       intercept[Exception] {
         // getRequest
-        jobApiServiceActorRef.underlyingActor.getDataRequest("dev-portal", "14621312DB7F8ED99BA1B16D8B430FAC")
+        jobApiServiceActorRef.underlyingActor.getDataRequest("dev-portal", "14621312DB7F8ED99BA1B16D8B430FAC", requestHeaderData)
       }
       intercept[Exception] {
         // listRequest
-        jobApiServiceActorRef.underlyingActor.getDataRequestList("client-2", 10)
+        jobApiServiceActorRef.underlyingActor.getDataRequestList("client-2", 10, requestHeaderData)
       }
   }
 }

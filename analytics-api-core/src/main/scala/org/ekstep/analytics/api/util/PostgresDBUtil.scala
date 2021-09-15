@@ -233,7 +233,8 @@ class PostgresDBUtil {
         pstmt.setString(12, JSONUtils.serialize(druidQuery));
         val limits = datasetRequest.limits.getOrElse(Map.empty)
         pstmt.setString(13, JSONUtils.serialize(limits));
-        pstmt.setString(14, datasetRequest.supported_formats.getOrElse(""));
+        val supportedFormats = datasetRequest.supported_formats.getOrElse(List.empty[String]).toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(14, dbc.createArrayOf("text", supportedFormats));
         pstmt.setString(15, datasetRequest.exhaust_type.getOrElse(""));
         pstmt.execute()
     }
@@ -260,7 +261,8 @@ class PostgresDBUtil {
         pstmt.setString(11, JSONUtils.serialize(druidQuery));
         val limits = datasetRequest.limits.getOrElse(Map.empty)
         pstmt.setString(12, JSONUtils.serialize(limits));
-        pstmt.setString(13, datasetRequest.supported_formats.getOrElse(""));
+        val supportedFormats = datasetRequest.supported_formats.getOrElse(List.empty[String]).toArray.asInstanceOf[Array[Object]];
+        pstmt.setArray(13, dbc.createArrayOf("text", supportedFormats));
         pstmt.setString(14, datasetRequest.exhaust_type.getOrElse(""));
         pstmt.setString(15, datasetRequest.dataset_id);
         pstmt.execute()
@@ -449,7 +451,7 @@ object JobRequest extends SQLSyntaxSupport[JobRequest] {
 case class DatasetRequest(dataset_id: String, dataset_sub_id: String, dataset_config: Map[String, Any], visibility: String, dataset_type: String,
                           version: String , authorized_roles: List[String], available_from: Option[Long],
                           sample_request: Option[String], sample_response: Option[String], validation_json: Option[Map[String, Any]],
-                          druid_query: Option[Map[String, Any]], limits: Option[Map[String, Any]], supported_formats: Option[String],
+                          druid_query: Option[Map[String, Any]], limits: Option[Map[String, Any]], supported_formats: Option[List[String]],
                           exhaust_type: Option[String]) {
     def this() = this("", "", Map[String, Any](), "", "", "", List(""), None, None, None, None, None, None, None, None)
 }
@@ -475,7 +477,7 @@ object DatasetRequest extends SQLSyntaxSupport[DatasetRequest] {
         if(rs.stringOpt("validation_json").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("validation_json"))) else None,
         if(rs.stringOpt("druid_query").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("druid_query"))) else None,
         if(rs.stringOpt("limits").nonEmpty) Option(JSONUtils.deserialize[Map[String, Any]](rs.string("limits"))) else None,
-        rs.stringOpt("supported_formats"),
+        if(rs.arrayOpt("supported_formats").nonEmpty) Option(rs.array("supported_formats").getArray.asInstanceOf[Array[String]].toList) else None,
         rs.stringOpt("exhaust_type")
     )
 }

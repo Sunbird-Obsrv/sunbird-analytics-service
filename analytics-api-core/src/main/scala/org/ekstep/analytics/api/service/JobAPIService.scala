@@ -318,7 +318,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
     val exhaustType = body.request.exhaustType
 
     val datasetConfig = DatasetConfig(datasetId, datasetSubId, datasetType, datasetConf, visibility, version, authorizedRoles, sampleRequest, sampleResponse, availableFrom, validationJson, druidQuery, limits, supportedFormats, exhaustType)
-    val datasetdetails = postgresDBUtil.getDataset(datasetId)
+    val datasetdetails = postgresDBUtil.getDatasetBySubId(datasetSubId)
     if (datasetdetails.isEmpty) {
       _saveDatasetRequest(datasetConfig)
     } else {

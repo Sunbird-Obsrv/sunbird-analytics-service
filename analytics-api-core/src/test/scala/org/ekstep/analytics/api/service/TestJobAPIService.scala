@@ -535,9 +535,11 @@ class TestJobAPIService extends BaseSpec  {
     val submissionDate = DateTime.now().toString("yyyy-MM-dd")
 
     EmbeddedPostgresql.execute(
-      s"""insert into dataset_metadata ("dataset_id", "dataset_config", "visibility", "dataset_type", "version",
+      s"""truncate table dataset_metadata;""")
+    EmbeddedPostgresql.execute(
+      s"""insert into dataset_metadata ("dataset_id", "dataset_sub_id", "dataset_config", "visibility", "dataset_type", "version",
           "authorized_roles", "available_from", "sample_request", "sample_response")
-          values ('progress-exhaust', '{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"}',
+          values ('progress-exhaust', 'progress-exhaust', '{"batchFilter":[],"contentFilters":{"request":{"filters":{"identifier":"","prevState":""},"sort_by":{"created_on":"desc"},"limit":100,"fields":[]}},"reportPath":"/test","output_format":"csv"}',
            'private', 'On-Demand', '1.0', '{"portal"}', '$submissionDate', '', '');""")
 
     reset(mockStorageService)

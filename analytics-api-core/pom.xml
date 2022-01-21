@@ -273,6 +273,9 @@
 					<source>1.7</source>
 					<target>1.7</target>
 					<checkMultipleScalaVersions>false</checkMultipleScalaVersions>
+					<args>
+						<arg>-nobootcp</arg>
+					</args>
 				</configuration>
 				<executions>
 					<execution>

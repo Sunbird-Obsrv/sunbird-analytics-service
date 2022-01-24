@@ -1,8 +1,8 @@
 FROM alpine:3.11
+RUN apt-get update && apt-get -y install openjdk:11
 RUN apk update \
     && apk add  unzip \
     && apk add curl \
-    && apk add openjdk:11 \
     && adduser -u 1001 -h /home/analytics/ -D analytics \
     && mkdir -p /home/analytics
 RUN chown -R analytics:analytics /home/analytics

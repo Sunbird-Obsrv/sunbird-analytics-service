@@ -1,4 +1,4 @@
-FROM openjdk:8-jdk-alpine
+FROM openjdk:11
 RUN apk update \
     && apk add  unzip \
     && apk add curl \

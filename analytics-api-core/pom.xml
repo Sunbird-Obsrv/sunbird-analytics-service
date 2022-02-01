@@ -270,6 +270,8 @@
 				<artifactId>scala-maven-plugin</artifactId>
 				<version>3.2.2</version>
 				<configuration>
+					<source>11</source>
+					<target>11</target>
 					<checkMultipleScalaVersions>false</checkMultipleScalaVersions>
 					<args>
 						<arg>-nobootcp</arg>

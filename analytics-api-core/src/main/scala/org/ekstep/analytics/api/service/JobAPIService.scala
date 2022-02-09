@@ -378,7 +378,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
         values.mkString("/")
       }
       else {
-        val values = f.split("/").toList.drop(3) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
+        val values = f.split("/").toList.drop(3) // 3 - is derived from 2 -> '//' after wasb, 1 -> uri
         values.mkString("/")
       }
       APILogger.log("Getting signed URL for - " + objectKey)

@@ -373,8 +373,14 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
     val request = job.request_data
     val lastupdated = if (djc.getOrElse(0) == 0) job.dt_job_submitted else djc.get
     val downloadUrls = if(processed && job.download_urls.nonEmpty) job.download_urls.get.map{f =>
-      val values = f.split("/").toList.drop(4) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
-      val objectKey = values.mkString("/")
+      val objectKey = if(f.contains("http")){
+        val values = f.split("/").toList.drop(4) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
+        values.mkString("/")
+      }
+      else {
+        val values = f.split("/").toList.drop(3) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
+        values.mkString("/")
+      }
       APILogger.log("Getting signed URL for - " + objectKey)
       storageService.getSignedURL(bucket, objectKey, Option((expiry * 60)))
     } else List[String]()
@@ -400,12 +406,12 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
 
   private def _saveDatasetRequest(datasetConfig: DatasetConfig): DatasetRequest = {
     postgresDBUtil.saveDatasetRequest(datasetConfig)
-    postgresDBUtil.getDataset(datasetConfig.dataset_id).get
+    postgresDBUtil.getDatasetBySubId(datasetConfig.dataset_sub_id).get
   }
 
   private def _updateDatasetRequest(datasetConfig: DatasetConfig): DatasetRequest = {
     postgresDBUtil.updateDatasetRequest(datasetConfig)
-    postgresDBUtil.getDataset(datasetConfig.dataset_id).get
+    postgresDBUtil.getDatasetBySubId(datasetConfig.dataset_sub_id).get
   }
 
   def _getRequestId(jobId: String, tag: String, requestedBy: String, requestedChannel: String, submissionDate: String, jobType: Option[String] = None): String = {

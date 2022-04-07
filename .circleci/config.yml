@@ -33,15 +33,13 @@ jobs:
     - run:
         name: Build analytics-core dependency jar
         command: |
-          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           cd sunbird-analytics-core && mvn install -DskipTests
     
     - run:
         name: lpa-api-build
         command: |
-          export JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
+          java -version
           mvn clean scoverage:report
     
     - save_cache:
@@ -52,6 +50,7 @@ jobs:
         name: sonar
         command: |
           export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64
+          java -version
           mvn -X sonar:sonar -Dsonar.projectKey=project-sunbird_sunbird-analytics-service -Dsonar.organization=project-sunbird -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
 ##test
 workflows:

@@ -726,6 +726,8 @@ class TestJobAPIService extends BaseSpec  {
   it should "return signed URL for csv file" in {
 
     EmbeddedPostgresql.execute(
+      s"""truncate table job_request;""")
+    EmbeddedPostgresql.execute(
       s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
         "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-2', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
         'SUCCESS',  '{"batchFilter":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',

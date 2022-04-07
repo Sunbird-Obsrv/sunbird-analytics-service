@@ -1,4 +1,5 @@
-FROM openjdk:8-jdk-alpine
+FROM alpine:3.11
+RUN apk --no-cache add openjdk11 --repository=http://dl-cdn.alpinelinux.org/alpine/edge/community
 RUN apk update \
     && apk add  unzip \
     && apk add curl \

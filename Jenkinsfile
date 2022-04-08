@@ -23,12 +23,13 @@ node('build-slave') {
             stage('Build') {
                 env.NODE_ENV = "build"
                 print "Environment will be : ${env.NODE_ENV}"
-                sh """
-                   export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64
-                   export PATH=$JAVA_HOME/bin:$PATH 
-                   mvn clean install -DskipTests
-                   mvn play2:dist -pl analytics-api
-                   """
+                sh '''
+                    export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64
+                    export PATH=$JAVA_HOME/bin:$PATH
+                    echo $(java -version)
+                    mvn clean install -DskipTests
+                    mvn play2:dist -pl analytics-api
+                '''
             }
             stage('Package') {
                 dir('sunbird-analytics-service-distribution') {

@@ -31,7 +31,6 @@ node('build-slave') {
                     sh """
                        export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64
                        export PATH=$JAVA_HOME/bin:$PATH
-                       echo $(java -version) 
                        mvn clean install -DskipTests
                        mvn play2:dist -pl analytics-api
                        """

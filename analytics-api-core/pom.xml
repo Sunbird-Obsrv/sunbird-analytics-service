@@ -126,7 +126,7 @@
 
 		<dependency>
 			<groupId>org.scalikejdbc</groupId>
-			<artifactId>scalikejdbc_2.11</artifactId>
+			<artifactId>scalikejdbc_${scala.maj.version}</artifactId>
 			<version>3.2.2</version>
 		</dependency>
 		<dependency>
@@ -146,17 +146,17 @@
 		</dependency>
 		<dependency>
 			<groupId>com.sksamuel.elastic4s</groupId>
-			<artifactId>elastic4s-http_2.11</artifactId>
+			<artifactId>elastic4s-http_${scala.maj.version}</artifactId>
 			<version>${elastic4sVersion}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sksamuel.elastic4s</groupId>
-			<artifactId>elastic4s-core_2.11</artifactId>
+			<artifactId>elastic4s-core_${scala.maj.version}</artifactId>
 			<version>${elastic4sVersion}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.11</artifactId>
+			<artifactId>akka-testkit_${scala.maj.version}</artifactId>
 			<version>${akka.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -180,7 +180,7 @@
 		</dependency>
 		<dependency>
 		    <groupId>de.sciss</groupId>
-		    <artifactId>fingertree_2.11</artifactId>
+		    <artifactId>fingertree_${scala.maj.version}</artifactId>
 		    <version>1.5.4</version>
 		</dependency>
 		<dependency>

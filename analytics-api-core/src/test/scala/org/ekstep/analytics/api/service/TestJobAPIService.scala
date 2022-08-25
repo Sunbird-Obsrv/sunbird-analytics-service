@@ -447,9 +447,9 @@ class TestJobAPIService extends BaseSpec  {
     result = Await.result((jobApiServiceActorRef ? ListDataSet(config)).mapTo[Response], 20.seconds)
     result.responseCode should be("OK")
 
-    val searchRequest =  """{"id":"ekstep.analytics.dataset.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dataset":"progress-exhaust","channel":"in.ekstep","status":"SUBMITTED"},"limit":10}}"""
-    result = Await.result((jobApiServiceActorRef ? SearchRequest(searchRequest, config)).mapTo[Response], 20.seconds)
-    result.responseCode should be("OK")
+//    val searchRequest =  """{"id":"ekstep.analytics.dataset.request.search","ver":"1.0","ts":"2016-12-07T12:40:40+05:30","params":{"msgid":"4f04da60-1e24-4d31-aa7b-1daf91c46341"},"request":{"filters":{"dataset":"progress-exhaust","channel":"in.ekstep","status":"SUBMITTED"},"limit":10}}"""
+//    result = Await.result((jobApiServiceActorRef ? SearchRequest(searchRequest, config)).mapTo[Response], 20.seconds)
+//    result.responseCode should be("OK")
   }
 
   it should "get the public exhaust files for summary rollup data" in {

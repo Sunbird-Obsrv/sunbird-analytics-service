@@ -17,9 +17,8 @@ import akka.util.Timeout
 import org.ekstep.analytics.api.service.experiment.{ExperimentData, ExperimentRequest, ExperimentService}
 import scala.concurrent.{Future}
 import akka.pattern.pipe
-
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
 
 @RunWith(classOf[JUnitRunner])
 class DeviceControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {

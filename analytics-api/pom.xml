@@ -100,7 +100,7 @@
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.11</artifactId>
+			<artifactId>akka-testkit_${scala.maj.version}</artifactId>
 			<version>${akka.version}</version>
 			<scope>test</scope>
 		</dependency>

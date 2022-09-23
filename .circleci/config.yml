@@ -51,7 +51,7 @@ jobs:
         command: |
           export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64
           java -version
-          mvn -X sonar:sonar -Dsonar.projectKey=project-sunbird_sunbird-analytics-service -Dsonar.organization=project-sunbird -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
+          mvn -X sonar:sonar -Dsonar.projectKey=Sunbird-Obsrv_sunbird-analytics-service -Dsonar.organization=Sunbird-Obsrv -Dsonar.host.url=https://sonarcloud.io -Dsonar.scala.coverage.reportPaths=/home/circleci/project/target/scoverage.xml
 ##test
 workflows:
   version: 2.1

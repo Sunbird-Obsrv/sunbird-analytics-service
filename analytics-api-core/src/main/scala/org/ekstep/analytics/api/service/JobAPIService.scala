@@ -267,7 +267,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
           }
           else {
             val expiry = config.getInt("channel.data_exhaust.expiryMins")
-            (dateKey, storageService.getSignedURL(bucket, key, Option((expiry * 60))))
+            (dateKey, storageService.getSignedURLV2(bucket, key, Option((expiry * 60))))
           }
         }
         return (isValid, res)
@@ -382,7 +382,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
         values.mkString("/")
       }
       APILogger.log("Getting signed URL for - " + objectKey)
-      storageService.getSignedURL(bucket, objectKey, Option((expiry * 60)))
+      storageService.getSignedURLV2(bucket, objectKey, Option((expiry * 60)))
     } else List[String]()
     JobResponse(job.request_id, job.tag, job.job_id, job.requested_by, job.requested_channel, job.status, lastupdated, request, job.iteration.getOrElse(0), stats, Option(downloadUrls), Option(Long.box(expiryTime)), job.err_message)
   }

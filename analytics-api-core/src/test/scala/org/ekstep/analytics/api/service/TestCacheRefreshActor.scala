@@ -14,7 +14,6 @@ import org.scalatest.Matchers
 class TestCacheRefreshActor extends FlatSpec with Matchers with MockitoSugar {
 
   implicit val config = ConfigFactory.load()
-  
   private implicit val system: ActorSystem = ActorSystem("cache-refresh-test-actor-system", config)
 
   "Cache refresh actor" should "refresh the cache periodically" in {

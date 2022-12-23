@@ -377,9 +377,11 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
         val values = f.split("/").toList.drop(4) // 4 - is derived from 2 -> '//' after http, 1 -> uri and 1 -> container
         values.mkString("/")
       }
-      else {
+      else if(f.contains("wasb")) {
         val values = f.split("/").toList.drop(3) // 3 - is derived from 2 -> '//' after wasb, 1 -> uri
         values.mkString("/")
+      }else {
+        f
       }
       APILogger.log("Getting signed URL for - " + objectKey)
       storageService.getSignedURL(bucket, objectKey, Option((expiry * 60)))

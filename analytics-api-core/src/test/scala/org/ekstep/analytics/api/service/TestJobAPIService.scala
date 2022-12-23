@@ -751,4 +751,27 @@ class TestJobAPIService extends BaseSpec  {
     values.mkString("/") should be("uci-response-exhaust/427C56316649909179E69188C5CDB091/d655cf03-1f6f-4510-acf6-d3f51b488a5e_response_20220209.csv")
 
   }
+  it should "return signed URL for relative path" in {
+
+    EmbeddedPostgresql.execute(
+      s"""truncate table job_request;""")
+    EmbeddedPostgresql.execute(
+      s"""insert into job_request ("tag", "request_id", "job_id", "status", "request_data", "requested_by",
+        "requested_channel", "dt_job_submitted", "dt_job_completed", "download_urls", "dt_file_created", "execution_time") values ('client-2', '462CDD1241226D5CA2E777DA522691EF', 'assessment-score-report',
+        'SUCCESS',  '{"batchFilter":["TPD","NCFCOPY"],"contentFilters":{"request":{"filters":{"identifier":["do_11305960936384921612216","do_1130934466492252161819"],"prevState":"Draft"},"sort_by":{"createdOn":"desc"},"limit":10000,"fields":["framework","identifier","name","channel","prevState"]}},"reportPath":"course-progress-v2/"}',
+        'test-1', 'in.ekstep' , '2020-09-07T13:54:39.019+05:30', '2020-09-08T13:54:39.019+05:30', '{"progress-exhaust/778A3669531143769B5E8C98D42E1CAD/013307481768378368112_progress_20220927.zip"}', '2020-09-08T13:50:39.019+05:30', '10');""")
+
+    when(cacheUtil.getConsumerChannelTable()).thenReturn(mockTable)
+    when(mockTable.get(ArgumentMatchers.any(), ArgumentMatchers.any())).thenReturn(1)
+    reset(mockStorageService)
+    when(mockFc.getStorageService(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn(mockStorageService);
+    when(mockStorageService.getSignedURL(ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any(),ArgumentMatchers.any())).thenReturn("https://sunbird.org/test/signed/file1.csv");
+    doNothing().when(mockStorageService).closeContext()
+
+    val res = jobApiServiceActorRef.underlyingActor.getDataRequestList("client-2", 10, requestHeaderData)
+    val resultMap = res.result.get
+    val jobRes = JSONUtils.deserialize[List[JobResponse]](JSONUtils.serialize(resultMap.get("jobs").get))
+    jobRes.length should be(1)
+
+  }
 }

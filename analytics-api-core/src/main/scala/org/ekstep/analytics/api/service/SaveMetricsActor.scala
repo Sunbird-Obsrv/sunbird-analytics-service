@@ -18,10 +18,12 @@ case object IncrementDeviceDbSaveErrorCount
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import org.ekstep.analytics.api.util.KafkaUtil
+import javax.inject.Inject
+import org.ekstep.analytics.api.util.AppConfig
 
-class SaveMetricsActor extends Actor {
+class SaveMetricsActor @Inject()(kafkaUtil: KafkaUtil) extends Actor {
 
-  private val config = ConfigFactory.load()
   private val logger = LogManager.getLogger("metrics-logger")
 
   private var apiCalls: Int = 0
@@ -30,10 +32,11 @@ class SaveMetricsActor extends Actor {
   private var locationDbSuccessCount: Int = 0
   private var locationDbErrorCount: Int = 0
   private var logDeviceRegisterSuccessCount: Int = 0
+  val metricsTopic = AppConfig.getString("kafka.metrics.event.topic")
 
 
   override def preStart(): Unit = {
-    val metricsPublishInterval: Int = config.getInt("metrics.time.interval.min")
+    val metricsPublishInterval: Int = AppConfig.getInt("metrics.time.interval.min")
     context.system.scheduler.schedule(initialDelay = 0.seconds, interval = metricsPublishInterval.minutes, self, SaveMetrics)
   }
 
@@ -44,7 +47,13 @@ class SaveMetricsActor extends Actor {
     case IncrementLocationDbSuccessCount => locationDbSuccessCount += 1
     case IncrementLocationDbErrorCount => locationDbErrorCount += 1
     case IncrementLogDeviceRegisterSuccessCount => logDeviceRegisterSuccessCount += 1
-    case SaveMetrics => writeMetricsToLog()
+    case SaveMetrics => {
+      if(apiCalls > 0) writeMetricsToLog()
+    }
+  }
+  
+  def getCounts(): (Int, Int, Int, Int, Int, Int) = {
+    (apiCalls, locationDbHitCount, locationDbMissCount, locationDbSuccessCount, locationDbErrorCount, logDeviceRegisterSuccessCount)
   }
 
   def resetCounts() = {
@@ -67,7 +76,8 @@ class SaveMetricsActor extends Actor {
       "location-db-miss-count" -> locationDbMissCount,
       "location-db-error-count" -> locationDbErrorCount,
       "log-device-register-success-count" -> logDeviceRegisterSuccessCount)
-    logger.info(JSONUtils.serialize(data))
+    //logger.info(JSONUtils.serialize(data))
+    kafkaUtil.send(JSONUtils.serialize(data), metricsTopic);
     resetCounts()
   }
 

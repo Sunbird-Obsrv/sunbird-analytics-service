@@ -50,10 +50,10 @@
 	<properties>
 		<play2.version>2.7.2</play2.version>
 		<play2.plugin.version>1.0.0-rc5</play2.plugin.version>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
 		<sbt-compiler.plugin.version>1.0.0-beta3</sbt-compiler.plugin.version>
 		<akka.version>2.5.25</akka.version>
+		<maven.compiler.source>11</maven.compiler.source>
+		<maven.compiler.target>11</maven.compiler.target>
 	</properties>
 
 	<dependencies>
@@ -67,6 +67,12 @@
 			<groupId>com.typesafe.play</groupId>
 			<artifactId>play_${scala.maj.version}</artifactId>
 			<version>${play2.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.typesafe.play/filters-helpers -->
 		<dependency>
@@ -94,8 +100,14 @@
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.11</artifactId>
+			<artifactId>akka-testkit_${scala.maj.version}</artifactId>
 			<version>${akka.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_${scala.maj.version}</artifactId>
+			<version>3.0.6</version>
 			<scope>test</scope>
 		</dependency>
 

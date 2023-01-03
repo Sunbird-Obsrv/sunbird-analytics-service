@@ -1,17 +1,20 @@
 package controllers
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.ask
 import akka.routing.FromConfig
-import javax.inject.Inject
-import org.ekstep.analytics.api.service.JobAPIService
-import org.ekstep.analytics.api.service.JobAPIService._
-import org.ekstep.analytics.api.util.{APILogger, CacheUtil, CommonUtil, JSONUtils}
+import com.fasterxml.jackson.core.JsonProcessingException
+import javax.inject.{Inject, Named}
+import org.apache.commons.lang3.StringUtils
+import org.ekstep.analytics.api.service._
+import org.ekstep.analytics.api.util._
 import org.ekstep.analytics.api.{APIIds, ResponseCode, _}
+import org.ekstep.analytics.framework.conf.AppConf
 import play.api.Configuration
 import play.api.libs.json.Json
 import play.api.mvc.{Request, Result, _}
 
+import scala.collection.JavaConversions._
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
@@ -19,91 +22,139 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 
 class JobController @Inject() (
+                                @Named("job-service-actor") jobAPIActor: ActorRef,
                                 system: ActorSystem,
                                 configuration: Configuration,
                                 cc: ControllerComponents,
-                                cacheUtil: CacheUtil
+                                cacheUtil: CacheUtil,
+                                restUtil: APIRestUtil
                               )(implicit ec: ExecutionContext) extends BaseController(cc, configuration) {
-
-  val jobAPIActor = system.actorOf(Props[JobAPIService].withRouter(FromConfig()), name = "jobApiActor")
 
   def dataRequest() = Action.async { request: Request[AnyContent] =>
     val body: String = Json.stringify(request.body.asJson.get)
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    println(s"is authenticated! $checkFlag")
-    if (checkFlag) {
-      val res = ask(jobAPIActor, DataRequest(body, channelId, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
-      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      unauthorized(msg)
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val res = ask(jobAPIActor, DataRequest(body, RequestHeaderData(channelId, consumerId, userId, userAuthToken), channelId, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
-  def getJob(clientKey: String, requestId: String) = Action.async { request: Request[AnyContent] =>
-
-    if (authorizeDataExhaustRequest(request)) {
-      val res = ask(jobAPIActor, GetDataRequest(clientKey, requestId, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = "Given X-Consumer-ID and X-Channel-ID are not authorized"
-      APILogger.log("Authorization FAILED")
-      unauthorized(msg)
+  def searchRequest(): Action[AnyContent] = Action.async { request: Request[AnyContent] =>
+    val body: String = Json.stringify(request.body.asJson.get)
+    val res = ask(jobAPIActor, SearchRequest(body, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.SEARCH_DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
-  def getJobList(clientKey: String) = Action.async { request: Request[AnyContent] =>
+
+  def getJob(tag: String) = Action.async { request: Request[AnyContent] =>
+
+    val requestId = request.getQueryString("requestId").getOrElse("")
+    val channelId = request.headers.get("X-Channel-ID").getOrElse("")
+    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val appendedTag = tag + ":" + channelId
+    val res = ask(jobAPIActor, GetDataRequest(appendedTag, requestId, RequestHeaderData(channelId, consumerId, userId, userAuthToken), config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST, ex.getMessage, "ERROR"))
+        ).as("application/json")
+    }
+  }
+
+  def getJobList(tag: String) = Action.async { request: Request[AnyContent] =>
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    if (checkFlag) {
-      val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
-      val res = ask(jobAPIActor, DataRequestList(clientKey, limit, config)).mapTo[Response]
-      res.map { x =>
-        result(x.responseCode, JSONUtils.serialize(x))
-      }
-    } else {
-      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
-      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      unauthorized(msg)
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val appendedTag = tag + ":" + channelId
+    val limit = Integer.parseInt(request.getQueryString("limit").getOrElse(config.getString("data_exhaust.list.limit")))
+    val res = ask(jobAPIActor, DataRequestList(appendedTag, limit, RequestHeaderData(channelId, consumerId, userId, userAuthToken), config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }.recover {
+      case ex: Exception =>
+        InternalServerError(
+          JSONUtils.serialize(CommonUtil.errorResponse(APIIds.GET_DATA_REQUEST_LIST, ex.getMessage, "ERROR"))
+        ).as("application/json")
     }
   }
 
   def getTelemetry(datasetId: String) = Action.async { request: Request[AnyContent] =>
 
-    val summaryType =  request.getQueryString("type")
-    val from = request.getQueryString("from").getOrElse("")
-    val to = request.getQueryString("to").getOrElse(org.ekstep.analytics.api.util.CommonUtil.getToday())
+    val since = request.getQueryString("since")
+    val from = request.getQueryString("from")
+    val to = request.getQueryString("to")
 
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
     val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
-    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(consumerId, channelId) else true
-    if (checkFlag) {
+    val authorizedRoles = config.getStringList("standard.dataexhaust.roles").toList
+    val checkFlag = if (config.getBoolean("dataexhaust.authorization_check")) authorizeDataExhaustRequest(request, authorizedRoles, true) else (true, None)
+    if (checkFlag._1) {
       APILogger.log(s"Authorization Successfull for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, config, summaryType)).mapTo[Response]
+      val res = ask(jobAPIActor, ChannelData(channelId, datasetId, from, to, since, config)).mapTo[Response]
       res.map { x =>
         result(x.responseCode, JSONUtils.serialize(x))
       }
     } else {
-      val msg = s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"
-      APILogger.log(s"Authorization FAILED for X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId'")
-      unauthorized(msg)
+        APILogger.log(checkFlag._2.get)
+        errResponse(checkFlag._2.get, APIIds.CHANNEL_TELEMETRY_EXHAUST, ResponseCode.FORBIDDEN.toString)
     }
   }
 
-  private def unauthorized(msg: String): Future[Result] = {
-    val res = CommonUtil.errorResponse(APIIds.CHANNEL_TELEMETRY_EXHAUST, msg, ResponseCode.FORBIDDEN.toString)
-    Future {
-      result(res.responseCode, JSONUtils.serialize(res))
+  def getPublicExhaust(datasetId: String) = Action.async { request: Request[AnyContent] =>
+
+    val since = request.getQueryString("since")
+    val from = request.getQueryString("from")
+    val to = request.getQueryString("to")
+    val date = request.getQueryString("date")
+    val dateRange = request.getQueryString("date_range")
+
+    val res = ask(jobAPIActor, PublicData(datasetId, from, to, since, date, dateRange, config)).mapTo[Response]
+      res.map { x =>
+        result(x.responseCode, JSONUtils.serialize(x))
+      }
+  }
+
+  def addDataset() = Action.async { request: Request[AnyContent] =>
+    val body: String = Json.stringify(request.body.asJson.get)
+    val res = ask(jobAPIActor, AddDataSet(body, config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
     }
+  }
+
+  def listDataset() = Action.async { request: Request[AnyContent] =>
+    val res = ask(jobAPIActor, ListDataSet(config)).mapTo[Response]
+    res.map { x =>
+      result(x.responseCode, JSONUtils.serialize(x))
+    }
+  }
+
+  private def errResponse(msg: String, apiId: String, responseCode: String): Future[Result] = {
+     val res = CommonUtil.errorResponse(apiId, msg, responseCode)
+     Future {
+        result(res.responseCode, JSONUtils.serialize(res))
+     }
   }
 
   def refreshCache(cacheType: String) = Action { implicit request =>
@@ -112,24 +163,59 @@ class JobController @Inject() (
             cacheUtil.initConsumerChannelCache()
           case "DeviceLocation" =>
             cacheUtil.initDeviceLocationCache()
-          case _ =>
-            cacheUtil.initCache()
       }
       result("OK", JSONUtils.serialize(CommonUtil.OK(APIIds.CHANNEL_TELEMETRY_EXHAUST, Map("msg" -> s"$cacheType cache refreshed successfully"))))
   }
 
-  def authorizeDataExhaustRequest(consumerId: String, channelId: String): Boolean = {
-    APILogger.log(s"Authorizing $consumerId and $channelId")
-    val status = Option(cacheUtil.getConsumerChannlTable().get(consumerId, channelId))
-    if (status.getOrElse(0) == 1) true else false
-  }
+  def authorizeDataExhaustRequest(request: Request[AnyContent], authorizedRoles: List[String], superAdminRulesCheck: Boolean = false): (Boolean, Option[String]) = {
 
-  def authorizeDataExhaustRequest(request: Request[AnyContent] ): Boolean = {
-    val authorizationCheck = config.getBoolean("dataexhaust.authorization_check")
-    if(!authorizationCheck) return true
-
-    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    // security enhancements logic
     val channelId = request.headers.get("X-Channel-ID").getOrElse("")
-    authorizeDataExhaustRequest(consumerId, channelId)
+    val consumerId = request.headers.get("X-Consumer-ID").getOrElse("")
+    val userAuthToken = request.headers.get("x-authenticated-user-token")
+    val userId = request.headers.get("X-Authenticated-Userid").getOrElse("")
+    val authBearerToken = request.headers.get("Authorization")
+    val userApiUrl = config.getString("user.profile.url")
+    if (channelId.nonEmpty) {
+        if(userAuthToken.isEmpty) {
+            APILogger.log(s"Authorizing $consumerId and $channelId")
+            val status = Option(cacheUtil.getConsumerChannelTable().get(consumerId, channelId))
+            if (status.getOrElse(0) == 1) (true, None) else (false, Option(s"Given X-Consumer-ID='$consumerId' and X-Channel-ID='$channelId' are not authorized"))
+        }
+        else {
+            var unauthorizedErrMsg = "You are not authorized."
+            val headers = Map("x-authenticated-user-token" -> userAuthToken.get)
+            val userReadResponse = restUtil.get[Response](userApiUrl + userId, Option(headers))
+            APILogger.log("user read response: " + JSONUtils.serialize(userReadResponse))
+            if(userReadResponse.responseCode.equalsIgnoreCase("ok")) {
+                val userResponse = userReadResponse.result.getOrElse(Map()).getOrElse("response", Map()).asInstanceOf[Map[String, AnyRef]]
+                val orgDetails = userResponse.getOrElse("rootOrg", Map()).asInstanceOf[Map[String, AnyRef]]
+                val userRoles = userResponse.getOrElse("organisations", List()).asInstanceOf[List[Map[String, AnyRef]]]
+                  .map(f => f.getOrElse("roles", List()).asInstanceOf[List[String]]).flatMap(f => f)
+                if (userRoles.filter(f => authorizedRoles.contains(f)).size > 0) {
+                    if (superAdminRulesCheck) {
+                        val userSlug = orgDetails.getOrElse("slug", "").asInstanceOf[String]
+                        APILogger.log("header channel: " + channelId + " org slug: " + userSlug)
+                        if (channelId.equalsIgnoreCase(userSlug)) return (true, None)
+                        else {
+                            // get MHRD tenant value from cache
+                            val mhrdChannel = cacheUtil.getSuperAdminChannel()
+                            val userChannel = orgDetails.getOrElse("channel", "").asInstanceOf[String]
+                            APILogger.log("user channel: " + userChannel + " mhrd id: " + mhrdChannel)
+                            if (userChannel.equalsIgnoreCase(mhrdChannel)) return (true, None)
+                        }
+                    }
+                    else {
+                        val userOrgId = orgDetails.getOrElse("id", "").asInstanceOf[String]
+                        APILogger.log("header channel: " + channelId + " org id: " + userOrgId)
+                        if (channelId.equalsIgnoreCase(userOrgId)) return (true, None)
+                    }
+                }
+            }
+            else { unauthorizedErrMsg = userReadResponse.params.errmsg }
+            (false, Option(unauthorizedErrMsg))
+        }
+    }
+    else (false, Option("X-Channel-ID is missing in request header"))
   }
 }

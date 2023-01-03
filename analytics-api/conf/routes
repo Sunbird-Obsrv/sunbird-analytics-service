@@ -9,26 +9,39 @@ GET  /health controllers.Application.checkAPIhealth
 GET /metrics/druid controllers.Application.getDruidHealthStatus
 
 # Device Register API
+POST /v1/device/register/:deviceId controllers.DeviceController.registerDevice(deviceId: String)
 
 # Device Profile API
 GET /v1/device/profile/:deviceId controllers.DeviceController.getDeviceProfile(deviceId: String)
-
-POST /v1/device/register/:deviceId controllers.DeviceController.registerDevice(deviceId: String)
-GET /v1/device/profile/:deviceId controllers.DeviceController.getDeviceProfile(deviceId: String)
-
 
 #client error API
 POST /data/v1/client/logs controllers.Application.logClientErrors
 
 #Experiemnt API
-
 POST /experiment/create controllers.ExperimentController.createExperiment
 GET /experiment/get/:experimentId controllers.ExperimentController.getExperiment(experimentId:String)
 
-# Data Exhaust
-POST /dataset/request/submit controllers.JobController.dataRequest
-GET /dataset/request/read/:clientKey/:requestId controllers.JobController.getJob(clientKey: String, requestId: String)
-GET /dataset/request/list/:clientKey controllers.JobController.getJobList(clientKey: String)
+# On-demand Data Exhaust APIs
+POST /request/submit controllers.JobController.dataRequest
+GET /request/read/:tag controllers.JobController.getJob(tag: String)
+GET /request/list/:tag controllers.JobController.getJobList(tag: String)
 
+# Exhaust Internal API
+POST /request/search controllers.JobController.searchRequest
+
+# Standard & Public Exhaust APIs
 GET /dataset/get/:datasetId controllers.JobController.getTelemetry(datasetId: String)
+GET /public/dataset/get/:datasetId controllers.JobController.getPublicExhaust(datasetId: String)
+
+# Data Exhaust Meta APIs (Internal)
+POST /dataset/add controllers.JobController.addDataset
+GET /dataset/list controllers.JobController.listDataset
+
 GET /refresh-cache/:cacheType controllers.JobController.refreshCache(cacheType: String)
+
+# Report API
+POST /report/jobs/submit controllers.ReportController.submitReport
+GET  /report/jobs/:reportId controllers.ReportController.getReport(reportId: String)
+POST  /report/jobs controllers.ReportController.getReportList
+POST /report/jobs/deactivate/:reportId  controllers.ReportController.deactivateReport(reportId: String)
+POST /report/jobs/:reportId controllers.ReportController.updateReport(reportId: String)

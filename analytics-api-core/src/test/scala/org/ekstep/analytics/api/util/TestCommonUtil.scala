@@ -1,11 +1,13 @@
 package org.ekstep.analytics.api.util
 
-import org.ekstep.analytics.api.util.CommonUtil.monthPeriod
+import org.ekstep.analytics.api.util.CommonUtil.{dateFormat, monthPeriod}
 import org.ekstep.analytics.api.{BaseSpec, Range, ResponseCode}
 import org.joda.time.format.{DateTimeFormat, DateTimeFormatter}
 import org.joda.time.{DateTime, DateTimeZone, Duration}
+import org.scalatest.FlatSpec
+import org.scalatest.Matchers
 
-class TestCommonUtil extends BaseSpec {
+class TestCommonUtil extends FlatSpec with Matchers {
 
     "CommonUtil" should "test all utility methods" in {
 
@@ -37,6 +39,17 @@ class TestCommonUtil extends BaseSpec {
         CommonUtil.getMonthRange(2) should be(Range(startMonth,  monthYear))
         CommonUtil.getRemainingHours() should be(remainingTime)
         CommonUtil.getWeeksBetween(1451650400000L, 1454650400000L) should be(5);
+        
+        CommonUtil.getPeriod("2020-10-1o") should be (0);
+
+        CommonUtil.getPreviousDay() should be (dateFormat.print(new DateTime().minusDays(1)));
+
+        CommonUtil.getIntervalRange("LAST_DAY").from should be (dateFormat.print(new DateTime().minusDays(1)))
+        CommonUtil.getIntervalRange("LAST_7_DAYS").from should be (dateFormat.print(new DateTime().minusDays(7)))
+        CommonUtil.getIntervalRange("LAST_14_DAYS").from should be (dateFormat.print(new DateTime().minusDays(14)))
+        CommonUtil.getIntervalRange("LAST_30_DAYS").from should be (dateFormat.print(new DateTime().minusDays(30)))
+        CommonUtil.getIntervalRange("LAST_WEEK").from should be (dateFormat.print(new DateTime().minusDays(7).dayOfWeek().withMinimumValue()))
+
         
     }
 }

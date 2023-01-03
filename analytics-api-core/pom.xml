@@ -126,7 +126,7 @@
 
 		<dependency>
 			<groupId>org.scalikejdbc</groupId>
-			<artifactId>scalikejdbc_2.11</artifactId>
+			<artifactId>scalikejdbc_${scala.maj.version}</artifactId>
 			<version>3.2.2</version>
 		</dependency>
 		<dependency>
@@ -146,17 +146,17 @@
 		</dependency>
 		<dependency>
 			<groupId>com.sksamuel.elastic4s</groupId>
-			<artifactId>elastic4s-http_2.11</artifactId>
+			<artifactId>elastic4s-http_${scala.maj.version}</artifactId>
 			<version>${elastic4sVersion}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.sksamuel.elastic4s</groupId>
-			<artifactId>elastic4s-core_2.11</artifactId>
+			<artifactId>elastic4s-core_${scala.maj.version}</artifactId>
 			<version>${elastic4sVersion}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
-			<artifactId>akka-testkit_2.11</artifactId>
+			<artifactId>akka-testkit_${scala.maj.version}</artifactId>
 			<version>${akka.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -178,7 +178,87 @@
 			<artifactId>h2</artifactId>
 			<version>1.4.200</version>
 		</dependency>
-
+		<dependency>
+		    <groupId>de.sciss</groupId>
+		    <artifactId>fingertree_${scala.maj.version}</artifactId>
+		    <version>1.5.4</version>
+		</dependency>
+		<dependency>
+		    <groupId>it.ozimov</groupId>
+		    <artifactId>embedded-redis</artifactId>
+		    <version>0.7.1</version>
+		    <scope>test</scope>
+		</dependency>
+		<dependency>
+		    <groupId>net.manub</groupId>
+		    <artifactId>scalatest-embedded-kafka_${scala.maj.version}</artifactId>
+		    <version>1.1.0</version>
+		    <scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.zonky.test</groupId>
+			<artifactId>embedded-postgres</artifactId>
+			<version>1.2.6</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+		    <groupId>pl.allegro.tech</groupId>
+		    <artifactId>embedded-elasticsearch</artifactId>
+		    <version>2.10.0</version>
+		    <scope>test</scope>
+		</dependency>
+		<!-- https://mvnrepository.com/artifact/org.apache.kafka/kafka -->
+		<dependency>
+			<groupId>org.apache.kafka</groupId>
+			<artifactId>kafka_${scala.maj.version}</artifactId>
+			<version>1.0.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-databind</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.sunbird</groupId>
+			<artifactId>cloud-store-sdk</artifactId>
+			<version>1.4.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.microsoft.azure</groupId>
+					<artifactId>azure-storage</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-core</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.apache.httpcomponents</groupId>
+					<artifactId>httpclient</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.azure</groupId>
+			<artifactId>azure-storage</artifactId>
+			<version>3.0.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.ing.wbaa.druid</groupId>
+			<artifactId>scruid_${scala.maj.version}</artifactId>
+			<version>2.5.0</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.java-json-tools</groupId>
+			<artifactId>json-schema-validator</artifactId>
+			<version>2.2.8</version>
+			<exclusions>
+				<exclusion>
+					<groupId>joda-time</groupId>
+					<artifactId>joda-time</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -190,9 +270,12 @@
 				<artifactId>scala-maven-plugin</artifactId>
 				<version>3.2.2</version>
 				<configuration>
-					<source>1.7</source>
-					<target>1.7</target>
+					<source>11</source>
+					<target>11</target>
 					<checkMultipleScalaVersions>false</checkMultipleScalaVersions>
+					<args>
+						<arg>-nobootcp</arg>
+					</args>
 				</configuration>
 				<executions>
 					<execution>

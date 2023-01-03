@@ -5,10 +5,10 @@ import play.api.libs.json.Json
 import play.api.mvc.Result
 import play.api.test.{FakeHeaders, FakeRequest}
 import play.api.test.Helpers.{POST, contentAsString, contentType, defaultAwaitTimeout, route, status, _}
-
 import scala.concurrent.Future
 
 class BaseSpec extends Specification {
+  
     implicit val app = new GuiceApplicationBuilder().build
 
     implicit val config = ConfigFactory.load();

@@ -1,14 +1,14 @@
 package org.ekstep.analytics.api.service
 
 import akka.actor.Actor
-import org.ekstep.analytics.api.util.APILogger
+import javax.inject.{Inject, Singleton}
+import org.ekstep.analytics.api.util.{APILogger, APIRestUtil}
 import org.ekstep.analytics.framework.conf.AppConf
-import org.ekstep.analytics.framework.util.HTTPClient
 
-class DruidHealthCheckService(restUtil: HTTPClient) extends Actor {
+class DruidHealthCheckService @Inject()(restUtil: APIRestUtil) extends Actor {
 
   implicit val className = "org.ekstep.analytics.api.service.DruidHealthCheckService"
-  val apiUrl = AppConf.getConfig("druid.coordinator.host")+AppConf.getConfig("druid.healthcheck.url")
+  val apiUrl = AppConf.getConfig("druid.coordinator.host") + AppConf.getConfig("druid.healthcheck.url")
 
   def receive = {
     case "health" => sender() ! getStatus
@@ -16,7 +16,7 @@ class DruidHealthCheckService(restUtil: HTTPClient) extends Actor {
 
   def getStatus: String = {
     val healthreport: StringBuilder = new StringBuilder()
-    try{
+    try {
       val response = restUtil.get[Map[String, Double]](apiUrl)
       response.map { data =>
         healthreport.append("http_druid_health_check_status{datasource=\"")

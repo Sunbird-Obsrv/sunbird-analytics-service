@@ -1,6 +1,5 @@
 package org.ekstep.analytics.api.util
 
-import com.typesafe.config.ConfigFactory
 import org.apache.logging.log4j.core.LoggerContext
 import org.apache.logging.log4j.{LogManager, Logger}
 import org.ekstep.analytics.framework._
@@ -8,7 +7,6 @@ import org.joda.time.DateTime
 
 object APILogger {
 	def init(jobName: String) = {
-		val apiConf = ConfigFactory.load()
 		val ctx = LogManager.getContext(false).asInstanceOf[LoggerContext]
 		ctx.reconfigure()
 	}
@@ -27,7 +25,6 @@ object APILogger {
 	}
 
 	private def getAccessMeasuredEvent(eid: String, level: String, msg: String, data: Option[AnyRef], status: Option[String] = None, apiName:String="AnalyticsAPI")(implicit className: String): V3Event = {
-		val apiConf = ConfigFactory.load()
 		val edataMap = data.getOrElse(Map[String, AnyRef]()).asInstanceOf[Map[String, AnyRef]]
 		val updatedEdataMap = edataMap ++ Map("level" -> level, "message" -> msg, "type" -> "system")
 		val edata = JSONUtils.deserialize[V3EData](JSONUtils.serialize(updatedEdataMap))

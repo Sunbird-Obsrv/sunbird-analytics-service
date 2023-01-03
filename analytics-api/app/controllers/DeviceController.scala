@@ -24,18 +24,14 @@ class DeviceController @Inject()(
                                 ) extends BaseController(cc, configuration) {
 
   implicit val ec: ExecutionContext = system.dispatchers.lookup("device-register-controller-dispatcher")
-  lazy val isExperimentEnabled: Boolean = configuration.getOptional[Boolean]("deviceRegisterAPI.experiment.enable").getOrElse(false)
 
   def registerDevice(deviceId: String) = Action.async { request: Request[AnyContent] =>
-    val body: JsValue = request.body.asJson.get
-    // The X-Forwarded-For header from Azure is in the format '61.12.65.222:33740, 61.12.65.222'
-    val ip = request.headers.get("X-Forwarded-For").map {
-      x =>
-        val ipArray = x.split(",")
-        if (ipArray.length == 2) ipArray(1).trim else ipArray(0).trim
-    }
 
-    val headerIP = ip.getOrElse("")
+    val isExperimentEnabled: Boolean = configuration.getOptional[Boolean]("deviceRegisterAPI.experiment.enable").getOrElse(false)
+    val body: JsValue = request.body.asJson.get
+
+    // Changes in processing client ip with Kong 12 upgrade with Azure App gateway for K8s
+    val headerIP = request.headers.get("X-Real-IP").getOrElse("")
     val uaspec = request.headers.get("User-Agent")
     val ipAddr = (body \ "request" \ "ip_addr").asOpt[String]
     val fcmToken = (body \ "request" \ "fcmToken").asOpt[String]
@@ -118,15 +114,10 @@ class DeviceController @Inject()(
     }
   }
 
-  def getDeviceProfile(deviceId: String) = Action.async { implicit request =>
+  def getDeviceProfile(deviceId: String) = Action.async { implicit request: Request[AnyContent] =>
 
-    // The X-Forwarded-For header from Azure is in the format '61.12.65.222:33740, 61.12.65.222'
-    val ip = request.headers.get("X-Forwarded-For").map {
-      headers =>
-        val ipArray = headers.split(",")
-        if (ipArray.length == 2) ipArray(1).trim else ipArray(0).trim
-    }
-    val headerIP = ip.getOrElse("")
+    // Changes in processing client ip with Kong 12 upgrade with Azure App gateway for K8s
+    val headerIP = request.headers.get("X-Real-IP").getOrElse("")
     val result = (deviceProfileActor ? DeviceProfileRequest(deviceId, headerIP)).mapTo[Option[DeviceProfile]]
     result.map {
       deviceData =>

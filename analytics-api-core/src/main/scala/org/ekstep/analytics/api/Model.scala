@@ -13,12 +13,16 @@ object Model {
 class BaseMetric(val d_period: Option[Int] = None) extends AnyRef with Serializable
 trait Metrics extends BaseMetric with Serializable
 
-case class Filter(partner_id: Option[String] = None, group_user: Option[Boolean] = None, content_id: Option[String] = None, tag: Option[String] = None, tags: Option[Array[String]] = None, start_date: Option[String] = None, end_date: Option[String] = None, events: Option[Array[String]] = None, app_id: Option[String] = Option(""), channel: Option[String] = Option(""), user_id: Option[String] = None, device_id: Option[String] = None, metrics_type: Option[String] = None, mode: Option[String] = None)
-case class Trend(day: Option[Int], week: Option[Int], month: Option[Int])
-case class Request(filter: Option[Filter], summaries: Option[Array[String]], trend: Option[Trend], context: Option[Map[String, AnyRef]], query: Option[String], filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int], output_format: Option[String], dataset_id: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None, dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None, producer: Option[String] = None);
+case class Request(filters: Option[Map[String, AnyRef]], config: Option[Map[String, AnyRef]], limit: Option[Int],
+									 outputFormat: Option[String], ip_addr: Option[String] = None, loc: Option[String] = None,
+									 dspec: Option[Map[String, AnyRef]] = None, channel: Option[String] = None, fcmToken: Option[String] = None,
+									 producer: Option[String] = None, tag: Option[String], dataset: Option[String], datasetConfig: Option[Map[String, Any]],
+									 requestedBy: Option[String], encryptionKey: Option[String], datasetType: Option[String], version: Option[String],
+									 visibility: Option[String], authorizedRoles: Option[List[String]], availableFrom: Option[String],
+									 sampleRequest: Option[String], sampleResponse: Option[String], validationJson: Option[Map[String, Any]],
+									 druidQuery: Option[Map[String, Any]], limits: Option[Map[String, Any]], supportedFormats: Option[List[String]],
+									 exhaustType: Option[String], datasetSubId: Option[String]);
 case class RequestBody(id: String, ver: String, ts: String, request: Request, params: Option[Params]);
-case class MetricsRequest(period: String, filter: Option[Filter], channel: Option[String] = None, rawQuery: Option[Map[String, AnyRef]], dialcodes: Option[List[String]] = None);
-case class MetricsRequestBody(id: String, ver: String, ts: String, request: MetricsRequest, param: Option[Params]);
 
 case class ContentSummary(period: Option[Int], total_ts: Double, total_sessions: Long, avg_ts_session: Double, total_interactions: Long, avg_interactions_min: Double)
 case class ItemMetrics(m_item_id: String, m_total_ts: Double, m_total_count: Integer, m_correct_res_count: Integer, m_inc_res_count: Integer, m_top5_incorrect_res: Array[String], m_avg_ts: Double)
@@ -51,8 +55,6 @@ case class Misconception(concept: String, count: Int);
 case class Rating(rating: Double, timestamp: Long)
 case class ItemUsageSummary(d_item_id: String, d_content_id: Option[String] = None, m_total_ts: Option[Double] = Option(0.0), m_total_count: Option[Long] = Option(0), m_correct_res_count: Option[Long] = Option(0), m_inc_res_count: Option[Long] = Option(0), m_correct_res: Option[List[AnyRef]] = Option(List()), m_top5_incorrect_res: Option[List[InCorrectRes]] = Option(List()), m_avg_ts: Option[Double] = Option(0.0), m_top5_mmc: Option[List[Misconception]] = Option(List()))
 case class ItemUsageMetrics(override val d_period: Option[Int] = None, label: Option[String] = None, items: Option[List[ItemUsageSummary]] = Option(List())) extends Metrics;
-
-case class JobRequest(client_key: Option[String], request_id: Option[String], job_id: Option[String], status: Option[String], request_data: Option[String], iteration: Option[Int], dt_job_submitted: Option[DateTime] = None, location: Option[String] = None, dt_file_created: Option[DateTime] = None, dt_first_event: Option[DateTime] = None, dt_last_event: Option[DateTime] = None, dt_expiration: Option[DateTime] = None, dt_job_processing: Option[DateTime] = None, dt_job_completed: Option[DateTime] = None, input_events: Option[Int] = None, output_events: Option[Int] = None, file_size: Option[Long] = None, latency: Option[Int] = None, execution_time: Option[Long] = None, err_message: Option[String] = None, stage: Option[String] = None, stage_status: Option[String] = None, job_name: Option[String] = None)
 
 case class RecommendationContent(device_id: String, scores: List[(String, Double)], updated_date: Long)
 case class RequestRecommendations(uid: String, requests: List[CreationRequest], updated_date: Long)
@@ -100,6 +102,7 @@ object APIIds {
 	val RECOMMENDATIONS = "ekstep.analytics.recommendations"
 	val DATA_REQUEST = "ekstep.analytics.dataset.request.submit";
 	val GET_DATA_REQUEST = "ekstep.analytics.dataset.request.info";
+	val SEARCH_DATA_REQUEST = "ekstep.analytics.dataset.request.search"
 	val GET_DATA_REQUEST_LIST = "ekstep.analytics.dataset.request.list";
 	val CONTENT_USAGE = "ekstep.analytics.metrics.content-usage"
 	val DEVICE_SUMMARY = "ekstep.analytics.metrics.device-summary"
@@ -109,28 +112,35 @@ object APIIds {
 	val GENIE_LUNCH = "ekstep.analytics.metrics.genie-launch"
 	val CREATION_RECOMMENDATIONS = "ekstep.analytics.creation.recommendations"
 	val METRICS_API = "org.ekstep.analytics.metrics"
-	val CHANNEL_TELEMETRY_EXHAUST = "org.ekstep.analytics.telemetry"
+	val CHANNEL_TELEMETRY_EXHAUST = "org.ekstep.analytics.telemetry.exhaust"
+	val PUBLIC_TELEMETRY_EXHAUST = "org.ekstep.analytics.public.telemetry.exhaust"
 	val WORKFLOW_USAGE = "ekstep.analytics.metrics.workflow-usage"
 	val DIALCODE_USAGE = "ekstep.analytics.metrics.dialcode-usage"
 	val CLIENT_LOG = "ekstep.analytics.client-log"
 	val EXPERIEMNT_CREATE_REQUEST = "ekstep.analytics.experiement.create";
 	val EXPERIEMNT_GET_REQUEST = "ekstep.analytics.experiement.get";
+	val REPORT_GET_REQUEST = "ekstep.analytics.report.get";
+	val REPORT_SUBMIT_REQUEST = "ekstep.analytics.report.submit"
+	val REPORT_DELETE_REQUEST = "ekstep.analytics.report.delete"
+	val REPORT_UPDATE_REQUEST = "ekstep.analytics.report.update"
+	val ADD_DATASET_REQUEST = "ekstep.analytics.dataset.add"
+	val LIST_DATASET = "ekstep.analytics.dataset.list"
 }
 
-case class JobOutput(location: Option[String] = None, file_size: Option[Long] = None, dt_file_created: Option[String] = None, dt_first_event: Option[Long] = None, dt_last_event: Option[Long] = None, dt_expiration: Option[Long] = None);
-case class JobStats(dt_job_submitted: Long, dt_job_processing:  Option[Long] = None, dt_job_completed:  Option[Long] = None, input_events: Option[Int] = None, output_events: Option[Int] = None, latency: Option[Int] = None, execution_time: Option[Long] = None);
-case class JobResponse(request_id: String, status: String, last_updated: Long, request_data: Request, attempts: Int, output: Option[JobOutput] = None, job_stats: Option[JobStats] = None);
-
+case class RequestHeaderData(channelId: String, consumerId: String, userId: String, userAuthToken: Option[String] = None)
+case class JobStats(dtJobSubmitted: Long, dtJobCompleted:  Option[Long] = None, executionTime: Option[Long] = None);
+case class JobResponse(requestId: String, tag: String, dataset: String, requestedBy: String, requestedChannel: String, status: String, lastUpdated: Long, datasetConfig: Map[String, Any], attempts: Int, jobStats: Option[JobStats] = None, downloadUrls: Option[List[String]] = None, expiresAt: Option[Long] = None, statusMessage: Option[String] = None);
+case class DatasetResponse(dataset: String, datasetSubId: String, datasetType: String, datasetConfig: Map[String, Any], visibility: String, version: String, sampleRequest: Option[String] = None, sampleResponse: Option[String] = None, availableFrom: String,
+													 validationJson: Option[Map[String, Any]] = None, supportedFormats: Option[List[String]] = None, exhaustType: Option[String] = None);
+case class JobConfig(tag: String, request_id: String, dataset: String, status: String, dataset_config: Map[String, Any], requested_by: String, requested_channel: String, dt_job_submitted: DateTime, encryption_key: Option[String], iteration: Option[Int] = Option(0))
+case class DatasetConfig(dataset_id: String, dataset_sub_id: String, dataset_type: String, dataset_config: Map[String, Any], visibility: String, version: String, authorized_roles: List[String], sample_request: Option[String] = None, sample_response: Option[String] = None, available_from: DateTime = new DateTime(),
+												 validation_json: Option[Map[String, Any]] = None, druid_query: Option[Map[String, Any]] = None, limits: Option[Map[String, Any]] = None, supported_formats: Option[List[String]] = None, exhaust_type: Option[String] = None)
 
 //Experiment
 case class ExperimentRequestBody(id: String, ver: String, ts: String, request: ExperimentCreateRequest, params: Option[Params])
 
 case class ExperimentCreateRequest(expId: String, name: String, createdBy: String, description: String,
 								   criteria: Map[String, AnyRef], data: Map[String, AnyRef])
-
-case class ExperimentDefinition(expId: String, expName: String, expDescription: String, createdBy: String,
-								updatedBy: String, udpatedOn: Option[DateTime], createdOn: Option[DateTime], criteria: String,
-								data: String, status: Option[String], status_msg: Option[String], stats: Option[Map[String, Long]])
 
 case class ExperimentParams(resmsgid: String, msgid: String, err: String, status: String, errorMsg: Map[String, String])
 
@@ -140,4 +150,15 @@ case class ExperimentResponse(request: ExperimentCreateRequest, stats: Map[Strin
 
 case class ExperimentErrorResponse(expResponse: ExperimentResponse, err: String, errorMsg: Map[String, String])
 
+case class ReportRequestBody(id: String, ver: String, ts: String, request: ReportRequest, params: Option[Params])
+case class ReportRequest(reportId: String, description: String, createdBy: String, reportSchedule: String,
+						  config: Map[String,Any])
 
+case class ReportResponse(reportId: String, reportDescription: String, createdBy: String, reportSchedule: String,
+						  config: Map[String,Any], createdOn: Long, updatedOn: Long, submittedOn: Long, status: String, status_msg: String)
+
+
+case class ReportFilter(request: ListReportFilter)
+case class ListReportFilter(filters: Map[String,List[String]])
+
+case class DateRange(from: String, to: String)

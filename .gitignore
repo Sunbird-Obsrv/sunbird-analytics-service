@@ -18,3 +18,7 @@ server.pid
 joblog.log
 **/target
 **/logs
+**access-log-*
+**application-log-*
+.idea
+*.iml

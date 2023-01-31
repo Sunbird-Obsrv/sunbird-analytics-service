@@ -257,8 +257,7 @@ class JobAPIService @Inject()(postgresDBUtil: PostgresDBUtil, apiValidator: APIV
 
       val storageKey = if (isPublic) config.getString("public.storage.key.config") else config.getString("storage.key.config")
       val storageSecret = if (isPublic) config.getString("public.storage.secret.config") else config.getString("storage.secret.config")
-      val storageEndpoint = if (isPublic) config.getString("public.storage.endpoint.config") else config.getString("storage.endpoint.config")
-      val storageService = fc.getStorageService(storageType, storageKey, storageSecret,Option(storageEndpoint),Option(""))
+      val storageService = fc.getStorageService(storageType, storageKey, storageSecret)
       val listObjs = storageService.searchObjectkeys(bucket, prefix, Option(fromDate), Option(toDate), None)
       if (listObjs.size > 0) {
         val res = for (key <- listObjs) yield {

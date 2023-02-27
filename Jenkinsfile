@@ -24,7 +24,7 @@ node('build-slave') {
                 env.NODE_ENV = "build"
                 print "Environment will be : ${env.NODE_ENV}"
                 sh '''
-                    export JAVA_HOME=/usr/lib/jvm/jdk-11.0.2
+                    export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
                     export PATH=$JAVA_HOME/bin:$PATH
                     echo $(java -version)
                     mvn clean install -DskipTests

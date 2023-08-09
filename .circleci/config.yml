@@ -38,13 +38,13 @@ jobs:
         name: Build analytics-core dependency jar
         command: |
           java -version
-          cd sunbird-analytics-core && mvn install -DskipTests mvn install -DskipTests -DCLOUD_STORE_GROUP_ID=$CLOUD_STORE_GROUP_ID -DCLOUD_STORE_ARTIFACT_ID=$CLOUD_STORE_ARTIFACT_ID -DCLOUD_STORE_VERSION=$CLOUD_STORE_VERSION
+          cd sunbird-analytics-core && mvn install -DskipTests -DCLOUD_STORE_GROUP_ID=$CLOUD_STORE_GROUP_ID -DCLOUD_STORE_ARTIFACT_ID=$CLOUD_STORE_ARTIFACT_ID -DCLOUD_STORE_VERSION=$CLOUD_STORE_VERSION
     
     - run:
         name: lpa-api-build
         command: |
           java -version
-          mvn clean scoverage:report -DCLOUD_STORE_GROUP_ID=$CLOUD_STORE_GROUP_ID -DCLOUD_STORE_ARTIFACT_ID=$CLOUD_STORE_ARTIFACT_ID -DCLOUD_STORE_VERSION=$CLOUD_STORE_VERSION
+          mvn scoverage:report -DCLOUD_STORE_GROUP_ID=$CLOUD_STORE_GROUP_ID -DCLOUD_STORE_ARTIFACT_ID=$CLOUD_STORE_ARTIFACT_ID -DCLOUD_STORE_VERSION=$CLOUD_STORE_VERSION
     
     - save_cache:
         key: dp-dependency-cache-{{ checksum "pom.xml" }}

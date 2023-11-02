@@ -162,3 +162,8 @@ case class ReportFilter(request: ListReportFilter)
 case class ListReportFilter(filters: Map[String,List[String]])
 
 case class DateRange(from: String, to: String)
+
+case class DeviceProfileRecord(device_id: String, devicespec: String, uaspec: String, fcm_token: String, producer: String, user_declared_state: String,
+												 user_declared_district: String, geonameId: Int, continentName: String, countryCode: String, countryName: String,
+												 stateCode: String, state: String, subDivsion2: String, city: String,
+												 stateCustom: String, stateCodeCustom: String, districtCustom: String, first_access: Long)

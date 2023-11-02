@@ -1,6 +1,6 @@
 package org.ekstep.analytics.api.util
 
-import org.ekstep.analytics.api.{DatasetConfig, JobConfig, ReportRequest}
+import org.ekstep.analytics.api.{DatasetConfig, DeviceProfileRecord, JobConfig, ReportRequest}
 import org.joda.time.DateTime
 import scalikejdbc._
 
@@ -39,6 +39,62 @@ class PostgresDBUtil {
         SQL(sqlString).map(rs => GeoLocationRange(rs)).list().apply()
     }
 
+    def readDeviceLocation(deviceId: String): Option[DeviceUserDeclaredLocation] = {
+        sql"select user_declared_state, user_declared_district from ${DeviceUserDeclaredLocation.table} where device_id = ${deviceId};".map(rs => DeviceUserDeclaredLocation(rs)).first().apply()
+    }
+
+    def saveDeviceData(deviceProfileRecord: DeviceProfileRecord) = {
+        val table = DeviceUserDeclaredLocation.tableName
+        val insertQry = s"INSERT INTO $table (device_id, api_last_updated_on, city, country, country_code, device_spec, district_custom, fcm_token, first_access, last_access, producer_id, state, state_code, state_code_custom, state_custom, uaspec, updated_date, user_declared_district, user_declared_state, user_declared_on) values (?, ?, ?, ?, ?, ?::json, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::json, ?, ?, ?, ?)";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setString(1, deviceProfileRecord.device_id);
+        pstmt.setTimestamp(2, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(3, deviceProfileRecord.city);
+        pstmt.setString(4, deviceProfileRecord.countryName);
+        pstmt.setString(5, deviceProfileRecord.countryCode);
+        pstmt.setString(6, if(deviceProfileRecord.devicespec.nonEmpty) deviceProfileRecord.devicespec else "{}");
+        pstmt.setString(7, deviceProfileRecord.districtCustom);
+        pstmt.setString(8, deviceProfileRecord.fcm_token);
+        pstmt.setTimestamp(9, new Timestamp(deviceProfileRecord.first_access)); // first access
+        pstmt.setTimestamp(10, new Timestamp(new DateTime().getMillis)); // last access
+        pstmt.setString(11, deviceProfileRecord.producer);
+        pstmt.setString(12, deviceProfileRecord.state);
+        pstmt.setString(13, deviceProfileRecord.stateCode);
+        pstmt.setString(14, deviceProfileRecord.stateCodeCustom);
+        pstmt.setString(15, deviceProfileRecord.stateCustom);
+        pstmt.setString(16, if(deviceProfileRecord.uaspec.nonEmpty) deviceProfileRecord.uaspec else "{}");
+        pstmt.setTimestamp(17, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(18, deviceProfileRecord.user_declared_district);
+        pstmt.setString(19, deviceProfileRecord.user_declared_state);
+        pstmt.setTimestamp(20, new Timestamp(new DateTime().getMillis));
+        pstmt.execute()
+    }
+
+    def updateDeviceData(deviceProfileRecord: DeviceProfileRecord) = {
+        val table = DeviceUserDeclaredLocation.tableName
+        val insertQry = s"update $table set api_last_updated_on = ?, city = ?, country = ?, country_code = ?, device_spec = ?::JSON , district_custom = ? , fcm_token = ?, last_access = ?, producer_id = ?, state = ?, state_code = ?, state_code_custom = ? state_custom = ?, uaspec = ?::JSON, updated_date = ?, user_declared_district = ?, user_declared_state = ?, user_declared_on = ? where device_id = ?";
+        val pstmt: PreparedStatement = dbc.prepareStatement(insertQry);
+        pstmt.setTimestamp(1, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(2, deviceProfileRecord.city);
+        pstmt.setString(3, deviceProfileRecord.countryName);
+        pstmt.setString(4, deviceProfileRecord.countryCode);
+        pstmt.setString(5, if(deviceProfileRecord.devicespec.nonEmpty) deviceProfileRecord.devicespec else "{}");
+        pstmt.setString(6, deviceProfileRecord.districtCustom);
+        pstmt.setString(7, deviceProfileRecord.fcm_token);
+        pstmt.setTimestamp(8, new Timestamp(new DateTime().getMillis)); // last access
+        pstmt.setString(9, deviceProfileRecord.producer);
+        pstmt.setString(10, deviceProfileRecord.state);
+        pstmt.setString(11, deviceProfileRecord.stateCode);
+        pstmt.setString(12, deviceProfileRecord.stateCodeCustom);
+        pstmt.setString(13, deviceProfileRecord.stateCustom);
+        pstmt.setString(14, if(deviceProfileRecord.uaspec.nonEmpty) deviceProfileRecord.uaspec else "{}");
+        pstmt.setTimestamp(15, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(16, deviceProfileRecord.user_declared_district);
+        pstmt.setString(17, deviceProfileRecord.user_declared_state);
+        pstmt.setTimestamp(18, new Timestamp(new DateTime().getMillis));
+        pstmt.setString(19, deviceProfileRecord.device_id);
+        pstmt.execute()
+    }
 
     def saveReportConfig(reportRequest: ReportRequest) = {
         val config = JSONUtils.serialize(reportRequest.config)
@@ -352,6 +408,19 @@ object DeviceLocation extends SQLSyntaxSupport[DeviceLocation] {
         rs.string("state_custom"),
         rs.string("state_code_custom"),
         rs.string("district_custom"))
+}
+
+case class DeviceUserDeclaredLocation(user_declared_state: String, user_declared_district: String) {
+    def this() = this("", "")
+
+    def toMap() = Map("user_declared_state" -> user_declared_state, "user_declared_district" -> user_declared_district)
+}
+
+object DeviceUserDeclaredLocation extends SQLSyntaxSupport[DeviceUserDeclaredLocation] {
+    override val tableName = AppConfig.getString("postgres.table.device_profile.name")
+    def apply(rs: WrappedResultSet) = new DeviceUserDeclaredLocation(
+        rs.string("user_declared_state"),
+        rs.string("user_declared_district"))
 }
 
 case class GeoLocationCity(geoname_id: Int, subdivision_1_name: String, subdivision_2_custom_name: String) {

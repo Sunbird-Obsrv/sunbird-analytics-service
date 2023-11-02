@@ -5,12 +5,15 @@ import com.google.common.net.InetAddresses
 import com.google.common.primitives.UnsignedInts
 import com.typesafe.config.Config
 import is.tagomor.woothee.Classifier
+
 import javax.inject.{Inject, Named}
 import org.apache.logging.log4j.LogManager
+import org.ekstep.analytics.api.DeviceProfileRecord
 import org.ekstep.analytics.api.util._
 import org.joda.time.{DateTime, DateTimeZone}
 import redis.clients.jedis.Jedis
 
+import java.sql.Timestamp
 import scala.collection.JavaConverters._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,7 +28,7 @@ case object DeviceRegisterSuccesfulAck extends DeviceRegisterStatus
 case object DeviceRegisterFailureAck extends DeviceRegisterStatus
 
 class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsActor: ActorRef, config: Config,
-                                       redisUtil: RedisUtil, kafkaUtil: KafkaUtil) extends Actor {
+                                       postgresDBUtil: PostgresDBUtil, kafkaUtil: KafkaUtil) extends Actor {
 
   implicit val className: String = "DeviceRegisterService"
   val metricsActor: ActorRef = saveMetricsActor
@@ -37,7 +40,7 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
   override def preStart { println("Starting DeviceRegisterService") }
 
   override def postStop {
-    redisUtil.closePool()
+//    redisUtil.closePool()
     kafkaUtil.close()
     println("DeviceRegisterService stopped successfully")
   }
@@ -83,16 +86,16 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
         case None        => Map()
       }
 
-      // Add device profile to redis cache
-      val deviceProfileMap = getDeviceProfileMap(registrationDetails, location)
-      val jedisConnection: Jedis = redisUtil.getConnection(deviceDatabaseIndex)
-      try {
-        Option(jedisConnection.hmset(registrationDetails.did, deviceProfileMap.asJava))
-      } finally {
-        jedisConnection.close()
+      // Add device profile to postgres
+      val deviceProfileRecord = getDeviceProfileRecord(registrationDetails, location)
+      val previousDeviceDetails = postgresDBUtil.readDeviceLocation(deviceProfileRecord.device_id)
+      if (previousDeviceDetails.isEmpty) {
+        postgresDBUtil.saveDeviceData(deviceProfileRecord)
+      } else {
+        postgresDBUtil.updateDeviceData(deviceProfileRecord)
       }
 
-      APILogger.log(s"Redis-cache updated for did: ${registrationDetails.did}", None, "registerDevice")
+      APILogger.log(s"Postgres updated for did: ${registrationDetails.did}", None, "registerDevice")
 
       val deviceProfileLog = DeviceProfileLog(registrationDetails.did, location, Option(deviceSpec),
         registrationDetails.uaspec, registrationDetails.fcmToken, registrationDetails.producer, registrationDetails.first_access,
@@ -155,18 +158,14 @@ class DeviceRegisterService @Inject() (@Named("save-metrics-actor") saveMetricsA
     JSONUtils.serialize(deviceProfile)
   }
 
-  def getDeviceProfileMap(registrationDetails: RegisterDevice, deviceLocation: DeviceLocation): Map[String, String] = {
-    // skipping firstaccess - handled in samza job
-    val dataMap =
-      Map(
-        "devicespec" -> registrationDetails.dspec.getOrElse(""),
-        "uaspec" -> parseUserAgent(registrationDetails.uaspec).getOrElse(""),
-        "fcm_token" -> registrationDetails.fcmToken.getOrElse(""),
-        "producer" -> registrationDetails.producer.getOrElse(""),
-        "user_declared_state" -> registrationDetails.user_declared_state.getOrElse(""),
-        "user_declared_district" -> registrationDetails.user_declared_district.getOrElse(""))
-
-    (dataMap ++ deviceLocation.toMap()).filter(data => data._2 != null && data._2.nonEmpty)
+  def getDeviceProfileRecord(registrationDetails: RegisterDevice, deviceLocation: DeviceLocation): DeviceProfileRecord = {
+    val uaspec = parseUserAgent(registrationDetails.uaspec).getOrElse("")
+    DeviceProfileRecord(registrationDetails.did, registrationDetails.dspec.getOrElse(""), uaspec,
+      registrationDetails.fcmToken.getOrElse(""), registrationDetails.producer.getOrElse(""),
+      registrationDetails.user_declared_state.getOrElse(""), registrationDetails.user_declared_district.getOrElse(""),
+      deviceLocation.geonameId, deviceLocation.continentName, deviceLocation.countryCode, deviceLocation.countryName,
+      deviceLocation.stateCode, deviceLocation.state, deviceLocation.subDivsion2, deviceLocation.city,
+      deviceLocation.stateCustom, deviceLocation.stateCodeCustom, deviceLocation.districtCustom, registrationDetails.first_access.getOrElse(new DateTime().getMillis))
   }
 
 }

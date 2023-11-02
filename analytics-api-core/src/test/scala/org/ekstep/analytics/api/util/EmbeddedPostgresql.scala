@@ -25,6 +25,7 @@ object EmbeddedPostgresql {
     val query5 = "CREATE TABLE IF NOT EXISTS job_request(tag VARCHAR(100), request_id VARCHAR(50), job_id VARCHAR(50), status VARCHAR(50), request_data json, requested_by VARCHAR(50), requested_channel VARCHAR(50), dt_job_submitted TIMESTAMP, download_urls text[], dt_file_created TIMESTAMP, dt_job_completed TIMESTAMP, execution_time INTEGER, err_message VARCHAR(100), iteration INTEGER, encryption_key VARCHAR(50), PRIMARY KEY (tag, request_id));"
     val query6 = "CREATE TABLE IF NOT EXISTS experiment_definition (exp_id VARCHAR(50), created_by VARCHAR(50), created_on TIMESTAMP, criteria VARCHAR(100), exp_data VARCHAR(300), exp_description VARCHAR(200), exp_name VARCHAR(50), stats VARCHAR(300), status VARCHAR(50), status_message VARCHAR(50), updated_by VARCHAR(50), updated_on TIMESTAMP, PRIMARY KEY(exp_id));"
     val query7 = "CREATE TABLE IF NOT EXISTS dataset_metadata(dataset_id VARCHAR(50), dataset_sub_id VARCHAR(50), dataset_config json, visibility VARCHAR(50), dataset_type VARCHAR(50), version VARCHAR(10), authorized_roles text[], available_from TIMESTAMP, sample_request VARCHAR(300), sample_response VARCHAR(500), validation_json json, druid_query json, limits json, supported_formats text[], exhaust_type VARCHAR(50), PRIMARY KEY (dataset_id, dataset_sub_id));"
+    val query8 = "CREATE TABLE IF NOT EXISTS device_profile(device_id text, api_last_updated_on timestamptz, avg_ts float, city text, country text, country_code text, device_spec json, district_custom text, fcm_token text, first_access timestamptz, last_access timestamptz, producer_id text, state text, state_code text, state_code_custom text, state_custom text, total_launches bigint, total_ts float, uaspec json, updated_date timestamptz, user_declared_district text, user_declared_state text, user_declared_on timestamptz, PRIMARY KEY(device_id))"
 
     execute(query1)
     execute(query2)
@@ -33,6 +34,7 @@ object EmbeddedPostgresql {
     execute(query5)
     execute(query6)
     execute(query7)
+    execute(query8)
   }
 
   def execute(sqlString: String): Boolean = {

@@ -1,22 +1,24 @@
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef}
+import akka.testkit.TestActorRef
 import com.typesafe.config.Config
 import controllers.DeviceController
 import org.ekstep.analytics.api.service.{DeviceProfile, DeviceProfileRequest, DeviceProfileService, DeviceRegisterFailureAck, DeviceRegisterService, DeviceRegisterSuccesfulAck, Location, RegisterDevice, SaveMetricsActor}
-import org.ekstep.analytics.api.util.{ElasticsearchService, KafkaUtil, RedisUtil}
+import org.ekstep.analytics.api.util.{ElasticsearchService, KafkaUtil, PostgresDBUtil, RedisUtil}
 import org.junit.runner.RunWith
 import org.mockito.Mockito._
 import org.scalatest.junit.JUnitRunner
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import play.api.Configuration
-import play.api.libs.json.{Json}
+import play.api.libs.json.Json
 import play.api.test.{FakeRequest, Helpers}
 import akka.util.Timeout
 import org.ekstep.analytics.api.service.experiment.{ExperimentData, ExperimentRequest, ExperimentService}
-import scala.concurrent.{Future}
+
+import scala.concurrent.Future
 import akka.pattern.pipe
+
 import scala.concurrent.duration._
 import scala.concurrent._
 
@@ -27,12 +29,12 @@ class DeviceControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
   implicit val timeout: Timeout = 20.seconds
   private val configMock = mock[Config]
   private val configurationMock = mock[Configuration]
-
+  private val postgresUtilMock = mock[PostgresDBUtil]
   private val redisUtilMock = mock[RedisUtil]
   private val kafkaUtilMock = mock[KafkaUtil]
   val saveMetricsActor = TestActorRef(new SaveMetricsActor(kafkaUtilMock))
 
-  val deviceRegisterActor = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, redisUtilMock, kafkaUtilMock) {
+  val deviceRegisterActor = TestActorRef(new DeviceRegisterService(saveMetricsActor, configMock, postgresUtilMock, kafkaUtilMock) {
     override def receive: Receive = {
       case msg:RegisterDevice => {
         if(msg.did.equals("device123") || msg.did.equals("device125")) {
@@ -46,7 +48,7 @@ class DeviceControllerSpec extends FlatSpec with Matchers with BeforeAndAfterAll
     }
   })
 
-  val deviceProfileActor = TestActorRef(new DeviceProfileService(configMock, redisUtilMock) {
+  val deviceProfileActor = TestActorRef(new DeviceProfileService(configMock, postgresUtilMock) {
     override def receive: Receive = {
       case dp: DeviceProfileRequest => {
         if("device124".equals(dp.did)) {

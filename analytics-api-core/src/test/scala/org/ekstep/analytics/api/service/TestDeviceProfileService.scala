@@ -4,21 +4,18 @@ import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActorRef, TestProbe}
 import com.typesafe.config.Config
 import org.ekstep.analytics.api.BaseSpec
-import org.ekstep.analytics.api.util.{DeviceStateDistrict, RedisUtil}
+import org.ekstep.analytics.api.util.{APILogger, CacheUtil, DeviceLocation, DeviceStateDistrict, EmbeddedPostgresql, IPLocationCache, KafkaUtil, PostgresDBUtil, RedisUtil}
 import org.mockito.Mockito.{times, verify, when}
-import org.ekstep.analytics.api.util.CacheUtil
-import org.ekstep.analytics.api.util.IPLocationCache
-import org.ekstep.analytics.api.util.DeviceLocation
 import de.sciss.fingertree.RangedSeq
+
 import scala.math.Ordering
-import redis.embedded.RedisServer;
+import redis.embedded.RedisServer
+
 import scala.collection.JavaConverters._
 import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
 import org.scalatestplus.mockito.MockitoSugar
 import com.typesafe.config.ConfigFactory
-import org.ekstep.analytics.api.util.KafkaUtil
 import redis.clients.jedis.exceptions.JedisConnectionException
-import org.ekstep.analytics.api.util.APILogger
 
 class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfterAll with MockitoSugar {
 
@@ -26,37 +23,45 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
   val deviceProfileServiceMock: DeviceProfileService = mock[DeviceProfileService]
   private implicit val system: ActorSystem = ActorSystem("device-register-test-actor-system", config)
   private val configMock = mock[Config]
-  private val redisUtil = new RedisUtil();
-  val redisIndex: Int = 2
+  private val postgresUtil = new PostgresDBUtil
+//  val redisIndex: Int = 2
   implicit val executor = scala.concurrent.ExecutionContext.global
   val kafkaUtil = new KafkaUtil()
   val saveMetricsActor = TestActorRef(new SaveMetricsActor(kafkaUtil))
   val metricsActorProbe = TestProbe()
-  when(configMock.getInt("redis.deviceIndex")).thenReturn(2)
-  when(configMock.getInt("redis.port")).thenReturn(6379)
+//  when(configMock.getInt("redis.deviceIndex")).thenReturn(2)
+//  when(configMock.getInt("redis.port")).thenReturn(6379)
+  when(configMock.getString("postgres.table.device_profile.name")).thenReturn("device_profile")
   when(configMock.getString("postgres.table.geo_location_city.name")).thenReturn("geo_location_city")
   when(configMock.getString("postgres.table.geo_location_city_ipv4.name")).thenReturn("geo_location_city_ipv4")
+  when(configMock.getString("postgres.table.device_profile.name")).thenReturn("device_profile")
   when(configMock.getBoolean("device.api.enable.debug.log")).thenReturn(true)
-  private val deviceProfileServiceActorRef = TestActorRef(new DeviceProfileService(configMock, redisUtil) {
+  private val deviceProfileServiceActorRef = TestActorRef(new DeviceProfileService(configMock, postgresUtil) {
 
   })
   val geoLocationCityIpv4TableName = config.getString("postgres.table.geo_location_city_ipv4.name")
   val geoLocationCityTableName = config.getString("postgres.table.geo_location_city.name")
-  private var redisServer:RedisServer = _;
+//  private var redisServer:RedisServer = _;
 
 
   override def beforeAll() {
     super.beforeAll()
-    redisServer = new RedisServer(6379);
-    redisServer.start();
-    val jedis = redisUtil.getConnection(redisIndex);
-    jedis.hmset("device-001", Map("user_declared_state" -> "Karnataka", "user_declared_district" -> "Tumkur").asJava);
-    jedis.close();
+    EmbeddedPostgresql.start()
+    EmbeddedPostgresql.createTables()
+    EmbeddedPostgresql.execute(
+      s"""insert into device_profile("device_id", "user_declared_district",
+            "user_declared_state") values ('device-001', 'Tumkur', 'Karnataka');""")
+    //    redisServer = new RedisServer(6379);
+//    redisServer.start();
+//    val jedis = redisUtil.getConnection(redisIndex);
+//    jedis.hmset("device-001", Map("user_declared_state" -> "Karnataka", "user_declared_district" -> "Tumkur").asJava);
+//    jedis.close();
   }
   
   override def afterAll() {
     super.afterAll()
-    redisServer.stop();
+//    redisServer.stop();
+    EmbeddedPostgresql.close()
     deviceProfileServiceActorRef.restart(new Exception() {})
     deviceProfileServiceActorRef.stop();
   }
@@ -122,11 +127,11 @@ class TestDeviceProfileService extends FlatSpec with Matchers with BeforeAndAfte
     intercept[Exception] {
       deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-001", "xyz"))
     }
-    intercept[JedisConnectionException] {
-      redisServer.stop();
-      deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-001", "106.51.74.185"))
-      redisServer.start();
-    }
+//    intercept[JedisConnectionException] {
+//      redisServer.stop();
+//      deviceProfileServiceActorRef.receive(DeviceProfileRequest("device-001", "106.51.74.185"))
+//      redisServer.start();
+//    }
   }
 
 }

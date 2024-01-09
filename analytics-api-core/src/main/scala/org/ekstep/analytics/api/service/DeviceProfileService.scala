@@ -12,15 +12,14 @@ import scala.collection.JavaConverters._
 
 case class DeviceProfileRequest(did: String, headerIP: String)
 
-class DeviceProfileService @Inject() (config: Config, redisUtil: RedisUtil) extends Actor {
+class DeviceProfileService @Inject() (config: Config, postgresDBUtil: PostgresDBUtil) extends Actor {
 
   implicit val className: String = "DeviceProfileService"
-  val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
+//  val deviceDatabaseIndex: Int = config.getInt("redis.deviceIndex")
 
   override def preStart { println("starting DeviceProfileService") }
 
   override def postStop {
-    redisUtil.closePool()
     println("DeviceProfileService stopped successfully")
   }
 
@@ -59,15 +58,10 @@ class DeviceProfileService @Inject() (config: Config, redisUtil: RedisUtil) exte
         APILogger.log("", Option(Map("comments" -> s"IP Location is not resolved for $did")), "getDeviceProfile")
       }
 
-      val jedisConnection: Jedis = redisUtil.getConnection(deviceDatabaseIndex)
-      val deviceLocation = try {
-        Option(jedisConnection.hgetAll(did).asScala.toMap)
-      } finally {
-        jedisConnection.close()
-      }
+      val deviceLocation = postgresDBUtil.readDeviceLocation(did)
 
-      val userDeclaredLoc = if (deviceLocation.nonEmpty && deviceLocation.get.getOrElse("user_declared_state", "").nonEmpty) {
-        Option(Location(deviceLocation.get("user_declared_state"), deviceLocation.get("user_declared_district")))
+      val userDeclaredLoc = if (deviceLocation.nonEmpty && deviceLocation.get.user_declared_state.nonEmpty) {
+        Option(Location(deviceLocation.get.user_declared_state, deviceLocation.get.user_declared_district))
       } else None
 
       userDeclaredLoc.foreach { declaredLocation =>

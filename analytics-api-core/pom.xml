@@ -112,18 +112,19 @@
 			</exclusions>
 			-->
 		</dependency>
-		<dependency>
-			<groupId>com.github.thurstonsand</groupId>
-			<artifactId>scala-cass_${scala.maj.version}</artifactId>
-			<version>2.1.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>io.netty</groupId>
-					<artifactId>*</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
+        <dependency>
+            <groupId>com.github.thurstonsand</groupId>
+            <artifactId>scala-cass_${scala.maj.version}</artifactId>
+            <version>2.1.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.netty</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
+            <scope>system</scope>
+            <systemPath>${project.basedir}/../libexec/scala-cass_2.12-2.1.0.jar</systemPath>
+        </dependency>
 		<dependency>
 			<groupId>org.scalikejdbc</groupId>
 			<artifactId>scalikejdbc_${scala.maj.version}</artifactId>
